@@ -1,0 +1,46 @@
+{
+  "keyboard": {
+    "move_left": ["A", "LEFT"],
+    "move_right": ["D", "RIGHT"],
+    "jump": ["SPACE", "W", "UP"],
+    "action_1": ["Z", "J"],
+    "action_2": ["X", "K"],
+    "pause": ["ESCAPE", "P"],
+    "menu_up": ["W", "UP"],
+    "menu_down": ["S", "DOWN"],
+    "menu_left": ["A", "LEFT"],
+    "menu_right": ["D", "RIGHT"],
+    "menu_select": ["ENTER", "SPACE"],
+    "menu_back": ["ESCAPE", "BACKSPACE"]
+  },
+  "controller": {
+    "xbox": {
+      "move_left": "LEFT_STICK_LEFT",
+      "move_right": "LEFT_STICK_RIGHT",
+      "jump": "A",
+      "action_1": "X",
+      "action_2": "Y",
+      "pause": "START",
+      "menu_up": "DPAD_UP",
+      "menu_down": "DPAD_DOWN",
+      "menu_left": "DPAD_LEFT",
+      "menu_right": "DPAD_RIGHT",
+      "menu_select": "A",
+      "menu_back": "B"
+    },
+    "playstation": {
+      "move_left": "LEFT_STICK_LEFT",
+      "move_right": "LEFT_STICK_RIGHT",
+      "jump": "X",
+      "action_1": "SQUARE",
+      "action_2": "TRIANGLE",
+      "pause": "OPTIONS",
+      "menu_up": "DPAD_UP",
+      "menu_down": "DPAD_DOWN",
+      "menu_left": "DPAD_LEFT",
+      "menu_right": "DPAD_RIGHT",
+      "menu_select": "X",
+      "menu_back": "CIRCLE"
+    }
+  }
+}

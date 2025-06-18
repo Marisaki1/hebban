@@ -1,0 +1,77 @@
+ {
+  "characters": {
+    "31A": {
+      "ruka": {
+        "id": "ruka",
+        "name": "Ruka Kayamori",
+        "title": "Squad Leader",
+        "bio": "Leader of 31A, skilled in both combat and tactics",
+        "stats": {
+          "health": 100,
+          "speed": 6,
+          "jump_power": 15,
+          "attack": 8,
+          "defense": 6
+        },
+        "abilities": [
+          {
+            "name": "Double Jump",
+            "description": "Perform a second jump in mid-air",
+            "cooldown": 0
+          },
+          {
+            "name": "Dash Attack",
+            "description": "Quick forward dash that damages enemies",
+            "cooldown": 3,
+            "damage": 15
+          },
+          {
+            "name": "Leadership Boost",
+            "description": "Boost nearby allies' attack power",
+            "cooldown": 10,
+            "duration": 5
+          }
+        ],
+        "sprite_sheet": "ruka_sprites.png",
+        "portrait": "ruka_portrait.png",
+        "unlock_condition": "default"
+      },
+      "yuki": {
+        "id": "yuki",
+        "name": "Yuki Izumi",
+        "title": "Scout",
+        "bio": "Swift and agile scout specializing in reconnaissance",
+        "stats": {
+          "health": 80,
+          "speed": 9,
+          "jump_power": 18,
+          "attack": 6,
+          "defense": 4
+        },
+        "abilities": [
+          {
+            "name": "Air Dash",
+            "description": "Dash horizontally in mid-air",
+            "cooldown": 2
+          },
+          {
+            "name": "Quick Strike",
+            "description": "Fast multi-hit combo attack",
+            "cooldown": 4,
+            "damage": 10,
+            "hits": 3
+          },
+          {
+            "name": "Enhanced Vision",
+            "description": "Reveal hidden items and enemy weak points",
+            "cooldown": 8,
+            "duration": 10
+          }
+        ],
+        "sprite_sheet": "yuki_sprites.png",
+        "portrait": "yuki_portrait.png",
+        "unlock_condition": "default"
+      }
+    }
+  }
+}

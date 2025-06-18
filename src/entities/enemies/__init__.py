@@ -1,0 +1,1 @@
+from .cancer_base import CancerEnemy

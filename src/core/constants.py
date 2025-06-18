@@ -1,0 +1,25 @@
+# Screen dimensions
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
+SCREEN_TITLE = "Heaven Burns Red"
+
+# Game settings
+FPS = 60
+GRAVITY = 0.5
+PLAYER_MOVEMENT_SPEED = 5
+JUMP_SPEED = 15
+
+# UI Colors
+UI_PRIMARY = arcade.color.CRIMSON
+UI_SECONDARY = arcade.color.WHITE
+UI_BACKGROUND = (20, 20, 20)
+UI_HOVER = arcade.color.LIGHT_CRIMSON
+
+# Networking
+DEFAULT_PORT = 8080
+MAX_PLAYERS = 8
+
+# Character stats
+DEFAULT_HEALTH = 100
+DEFAULT_SPEED = 5
+DEFAULT_JUMP_POWER = 15

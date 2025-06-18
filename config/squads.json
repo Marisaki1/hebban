@@ -1,0 +1,43 @@
+{
+  "squads": [
+    {
+      "id": "31A",
+      "name": "31A Squad",
+      "description": "Elite combat unit specializing in aerial combat against Cancers",
+      "unlock_condition": "default",
+      "squad_bonus": {
+        "type": "balanced",
+        "health_bonus": 10,
+        "attack_bonus": 5
+      },
+      "members": ["ruka", "yuki", "karen", "tsukasa", "megumi", "ichigo"],
+      "formation": "assault"
+    },
+    {
+      "id": "31B",
+      "name": "31B Squad",
+      "description": "Heavy assault squad with focus on defensive tactics",
+      "unlock_condition": "complete_chapter_2",
+      "squad_bonus": {
+        "type": "defensive",
+        "health_bonus": 20,
+        "defense_bonus": 10
+      },
+      "members": ["seika", "mion", "aoi", "sumire", "kura", "maria"],
+      "formation": "defensive"
+    },
+    {
+      "id": "31C",
+      "name": "31C Squad",
+      "description": "Stealth operations squad for infiltration missions",
+      "unlock_condition": "complete_chapter_3",
+      "squad_bonus": {
+        "type": "speed",
+        "speed_bonus": 15,
+        "evasion_bonus": 20
+      },
+      "members": ["nina", "rei", "luna", "stella", "aria", "nova"],
+      "formation": "infiltration"
+    }
+  ]
+}
