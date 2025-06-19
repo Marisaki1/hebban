@@ -29,7 +29,7 @@ class MenuItem:
             self.x, self.y, self.width, self.height, color
         )
         
-        # Draw text
+        # Draw text - Updated for Arcade 3.0
         arcade.draw_text(
             self.text,
             self.x,
@@ -124,7 +124,7 @@ class MenuState(Scene):
             640, 360, 1280, 720, (20, 20, 20)
         )
         
-        # Draw title
+        # Draw title - Updated for Arcade 3.0
         arcade.draw_text(
             self.title,
             640,

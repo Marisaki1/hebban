@@ -1,5 +1,5 @@
 # ============================================================================
-# FILE: src/core/asset_manager.py
+# FILE: src/core/asset_manager.py - Updated for Arcade 3.0+
 # ============================================================================
 import os
 import arcade
@@ -44,7 +44,8 @@ class AssetManager:
         # Add border
         draw.rectangle([0, 0, size[0]-1, size[1]-1], outline=(255, 255, 255, 255), width=2)
         
-        texture = arcade.Texture(name, image)
+        # Create texture from PIL image - Updated for Arcade 3.0
+        texture = arcade.Texture(image=image, name=name)
         self.textures[name] = texture
         
     def get_texture(self, path: str, fallback: str = 'default_character') -> arcade.Texture:
@@ -69,4 +70,4 @@ class AssetManager:
     def _create_error_texture(self) -> arcade.Texture:
         """Create an error texture"""
         image = Image.new('RGBA', (64, 64), (255, 0, 255, 255))
-        return arcade.Texture('error', image)
+        return arcade.Texture(image=image, name='error')

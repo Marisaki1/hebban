@@ -1,7 +1,9 @@
 # ============================================================================
-# FILE: src/scenes/gameplay.py
+# FILE: src/scenes/gameplay.py - Updated for Arcade 3.0+
 # ============================================================================
+import arcade
 from src.core.director import Scene
+from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 from src.entities.player import Player
 from src.entities.enemies.cancer_base import CancerEnemy
 from src.ui.hud import HUD
@@ -24,12 +26,15 @@ class GameplayScene(Scene):
         self.platform_list = arcade.SpriteList()
         self.item_list = arcade.SpriteList()
         
+        # Player
+        self.player = None
+        
         # Game state
         self.score = 0
         self.current_level = 1
         self.game_over = False
         
-        # Camera
+        # Camera - Updated for Arcade 3.0
         self.camera = None
         self.gui_camera = None
         
@@ -42,9 +47,9 @@ class GameplayScene(Scene):
         
     def on_enter(self):
         """Setup gameplay scene"""
-        # Create cameras
-        self.camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
-        self.gui_camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
+        # Create cameras - Updated for Arcade 3.0
+        self.camera = arcade.camera.Camera2D()
+        self.gui_camera = arcade.camera.Camera2D()
         
         # Create player
         character_data = self._get_selected_character()
@@ -64,7 +69,7 @@ class GameplayScene(Scene):
         
     def _get_selected_character(self) -> dict:
         """Get selected character data"""
-        if self.save_manager.current_save:
+        if self.save_manager and self.save_manager.current_save:
             # Get from save data
             squad_id = self.save_manager.current_save.game_data.get('selected_squad', '31A')
             char_id = self.save_manager.current_save.game_data.get('selected_character', 'ruka')
@@ -72,6 +77,16 @@ class GameplayScene(Scene):
             # Load from config (simplified for demo)
             return {
                 'id': char_id,
+                'name': 'Ruka',
+                'health': 100,
+                'speed': 6,
+                'jump_power': 15,
+                'abilities': ['Double Jump', 'Dash Attack']
+            }
+        else:
+            # Default character
+            return {
+                'id': 'ruka',
                 'name': 'Ruka',
                 'health': 100,
                 'speed': 6,
@@ -132,6 +147,7 @@ class GameplayScene(Scene):
             if self.player.is_attacking:
                 enemy.take_damage(10)
                 self.score += 10 * enemy.scale
+                self.hud.score = self.score
                 
         # Update camera to follow player
         self.center_camera_on_player()
@@ -139,22 +155,25 @@ class GameplayScene(Scene):
         # Check win/lose conditions
         if self.player.health <= 0:
             self.game_over = True
-            self.director.push_scene('game_over')
+            # In a real implementation, show game over screen
+            self.director.change_scene('main_menu')
             
     def center_camera_on_player(self):
-        """Center camera on player with bounds"""
-        screen_center_x = self.player.center_x - (self.camera.viewport_width / 2)
-        screen_center_y = self.player.center_y - (self.camera.viewport_height / 2)
+        """Center camera on player with bounds - Updated for Arcade 3.0"""
+        # Calculate camera position
+        camera_x = self.player.center_x - SCREEN_WIDTH / 2
+        camera_y = self.player.center_y - SCREEN_HEIGHT / 2
         
         # Don't let camera go negative
-        screen_center_x = max(screen_center_x, 0)
-        screen_center_y = max(screen_center_y, 0)
+        camera_x = max(camera_x, 0)
+        camera_y = max(camera_y, 0)
         
-        self.camera.move_to((screen_center_x, screen_center_y))
+        # Update camera position
+        self.camera.position = (camera_x, camera_y)
         
     def draw(self):
         """Draw gameplay"""
-        arcade.start_render()
+        self.clear()
         
         # Use game camera
         self.camera.use()

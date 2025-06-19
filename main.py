@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 """
 Heaven Burns Red - Main Game Entry Point
-Complete implementation with all imports and integrations
+Updated for Arcade 3.0+
 """
 
 import os
@@ -12,47 +11,21 @@ import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
-# ============================================================================
-# FILE: src/core/constants.py (Complete Version)
-# ============================================================================
-# Screen dimensions
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 720
-SCREEN_TITLE = "Heaven Burns Red"
-
-# Game settings
-FPS = 60
-GRAVITY = 0.5
-PLAYER_MOVEMENT_SPEED = 5
-JUMP_SPEED = 15
-
-# UI Colors
-UI_PRIMARY = arcade.color.CRIMSON
-UI_SECONDARY = arcade.color.WHITE
-UI_BACKGROUND = (20, 20, 20)
-UI_HOVER = arcade.color.LIGHT_CRIMSON
-
-# Networking
-DEFAULT_PORT = 8080
-MAX_PLAYERS = 8
-
-# Character stats
-DEFAULT_HEALTH = 100
-DEFAULT_SPEED = 5
-DEFAULT_JUMP_POWER = 15
-
-# ============================================================================
-# Import all necessary components
-# ============================================================================
-# First, add the src directory to Python path
+# Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Import core constants first
+from src.core.constants import *
+
+# Import core systems
 from src.core.director import Director, Scene
 from src.core.asset_manager import AssetManager
 from src.input.input_manager import InputManager, InputAction, InputType
 from src.save.save_manager import SaveManager, SaveData
 from src.systems.gravity import GravityManager, GravityMode
 from src.systems.animation import AnimationController, AnimationState, Animation
+
+# Import menu components
 from src.menu.menu_state import MenuState, MenuItem
 from src.menu.main_menu import MainMenu
 from src.menu.squad_select import SquadSelectMenu, CharacterInfo
@@ -60,25 +33,23 @@ from src.menu.character_select import CharacterSelectMenu, CharacterGrid
 from src.menu.settings_menu import SettingsMenu
 from src.menu.leaderboard import LeaderboardMenu
 from src.menu.lobby_menu import LobbyMenu
+
+# Import scenes
 from src.scenes.gameplay import GameplayScene
 from src.scenes.pause import PauseMenu
+
+# Import networking
 from src.networking.server import GameServer
 from src.networking.client import GameClient
 from src.networking.protocol import NetworkProtocol, MessageType
 
-# ============================================================================
-# Create missing menu imports that need to be defined
-# ============================================================================
-# Import from character select needs the proper implementation
-# Let's add it to the squad_select file since they're related
+# Import utilities
+import src.utils.helpers as helpers
 
-# ============================================================================
-# FILE: main.py - Complete Implementation
-# ============================================================================
 class HeavenBurnsRed(arcade.Window):
-    """Main game class with all systems integrated"""
+    """Main game class with all systems integrated - Updated for Arcade 3.0+"""
     def __init__(self, width: int, height: int, title: str):
-        super().__init__(width, height, title)
+        super().__init__(width, height, title, resizable=False)
         arcade.set_background_color(arcade.color.BLACK)
         
         # Core systems
@@ -102,7 +73,7 @@ class HeavenBurnsRed(arcade.Window):
             'is_multiplayer': self.is_multiplayer
         }
         
-        # Frame rate
+        # Frame rate - Updated for Arcade 3.0
         self.set_update_rate(1/FPS)
         
         # Debug info
@@ -113,7 +84,7 @@ class HeavenBurnsRed(arcade.Window):
         print("Setting up Heaven Burns Red...")
         
         # Create default config files if they don't exist
-        self._create_default_configs()
+        helpers.create_default_configs()
         
         # Load save data if exists
         save_slots = self.save_manager.get_save_files()
@@ -121,7 +92,7 @@ class HeavenBurnsRed(arcade.Window):
             # Load most recent save
             most_recent_slot = max(
                 (s for s in save_slots if s['exists']),
-                key=lambda s: s['timestamp']
+                key=lambda s: s.get('timestamp', '')
             )
             self.save_manager.load_game(most_recent_slot['slot'])
             print(f"Loaded save from slot {most_recent_slot['slot']}")
@@ -137,54 +108,6 @@ class HeavenBurnsRed(arcade.Window):
         self.director.push_scene("main_menu")
         print("Game setup complete!")
         
-    def _create_default_configs(self):
-        """Create default configuration files if they don't exist"""
-        import src.utils.helpers as helpers
-        
-        # Create config directory
-        os.makedirs('config', exist_ok=True)
-        
-        # Default configurations
-        configs = {
-            'characters.json': {
-                "characters": {
-                    "31A": {
-                        "ruka": {
-                            "id": "ruka",
-                            "name": "Ruka Kayamori",
-                            "health": 100,
-                            "speed": 6,
-                            "jump_power": 15,
-                            "abilities": ["Double Jump", "Dash Attack", "Leadership Boost"]
-                        }
-                    }
-                }
-            },
-            'squads.json': {
-                "squads": [
-                    {
-                        "id": "31A",
-                        "name": "31A Squad",
-                        "members": [
-                            {"id": "ruka", "name": "Ruka", "health": 100, "speed": 6, "jump_power": 15, "abilities": ["Double Jump", "Dash Attack"]},
-                            {"id": "yuki", "name": "Yuki", "health": 80, "speed": 8, "jump_power": 18, "abilities": ["Air Dash", "Quick Strike"]},
-                            {"id": "karen", "name": "Karen", "health": 120, "speed": 4, "jump_power": 12, "abilities": ["Shield Bash", "Ground Pound"]},
-                            {"id": "tsukasa", "name": "Tsukasa", "health": 90, "speed": 7, "jump_power": 16, "abilities": ["Teleport", "Energy Blast"]},
-                            {"id": "megumi", "name": "Megumi", "health": 85, "speed": 7, "jump_power": 17, "abilities": ["Healing Aura", "Light Beam"]},
-                            {"id": "ichigo", "name": "Ichigo", "health": 95, "speed": 6, "jump_power": 15, "abilities": ["Fire Ball", "Flame Dash"]}
-                        ]
-                    }
-                ]
-            }
-        }
-        
-        for filename, content in configs.items():
-            filepath = os.path.join('config', filename)
-            if not os.path.exists(filepath):
-                with open(filepath, 'w') as f:
-                    json.dump(content, f, indent=2)
-                print(f"Created default config: {filename}")
-                
     def _register_all_scenes(self):
         """Register all game scenes"""
         # Menu scenes
@@ -223,22 +146,21 @@ class HeavenBurnsRed(arcade.Window):
             PauseMenu(self.director, self.input_manager)
         )
         
-        # Character select is created dynamically when squad is selected
-        
     def on_draw(self):
-        """Render the game"""
+        """Render the game - Updated for Arcade 3.0"""
+        self.clear()
         self.director.draw()
         
         # Show FPS if enabled
         if self.show_fps:
             arcade.draw_text(
-                f"FPS: {arcade.get_fps():.0f}",
+                f"FPS: {round(1/self.delta_time)}",
                 10, SCREEN_HEIGHT - 30,
                 arcade.color.WHITE,
                 14
             )
         
-    def update(self, delta_time: float):
+    def on_update(self, delta_time: float):
         """Update game logic"""
         self.director.update(delta_time)
         self.input_manager.update_controller()
@@ -279,18 +201,16 @@ class HeavenBurnsRed(arcade.Window):
         if current_scene:
             current_scene.on_mouse_press(x, y, button, modifiers)
             
-    def on_close(self):
-        """Handle window close"""
+    def close(self):
+        """Handle window close - Updated for Arcade 3.0"""
         print("Saving game before exit...")
         # Auto-save on exit
         if self.save_manager.current_save:
             self.save_manager.save_game(1)
             print("Game saved!")
-        super().on_close()
+        super().close()
 
-# ============================================================================
 # Update SquadSelectMenu to properly handle character selection
-# ============================================================================
 def update_squad_select_menu():
     """Patch to add character selection transition"""
     original_select = SquadSelectMenu.select_item
@@ -317,13 +237,11 @@ def update_squad_select_menu():
 # Apply the patch
 update_squad_select_menu()
 
-# ============================================================================
-# Main entry point
-# ============================================================================
 def main():
     """Main function with server option"""
     print("=" * 60)
     print("HEAVEN BURNS RED - Platform Game")
+    print(f"Running on Arcade {arcade.version}")
     print("=" * 60)
     
     if len(sys.argv) > 1:
@@ -357,9 +275,6 @@ def main():
         finally:
             print("Game closed.")
 
-# ============================================================================
-# Project setup helper
-# ============================================================================
 def setup_project():
     """Create all necessary directories and files"""
     print("Setting up project structure...")
@@ -397,7 +312,7 @@ def setup_project():
     # Create requirements.txt if it doesn't exist
     if not os.path.exists('requirements.txt'):
         with open('requirements.txt', 'w') as f:
-            f.write("""arcade==2.6.17
+            f.write("""arcade==3.0.0
 Pillow==10.0.0
 pymunk==6.5.1
 websockets==11.0.3
@@ -418,7 +333,3 @@ if __name__ == "__main__":
         print("\nPlease run 'python main.py' again to start the game.")
     else:
         main()
-
-# ============================================================================
-# END OF MAIN.PY
-# ============================================================================
