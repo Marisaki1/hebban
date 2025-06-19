@@ -1,6 +1,6 @@
 """
 Heaven Burns Red - Main Game Entry Point
-Updated for Arcade 3.0+
+Fixed version with proper input handling
 """
 
 import os
@@ -47,7 +47,7 @@ from src.networking.protocol import NetworkProtocol, MessageType
 import src.utils.helpers as helpers
 
 class HeavenBurnsRed(arcade.Window):
-    """Main game class with all systems integrated - Updated for Arcade 3.0+"""
+    """Main game class with fixed input handling"""
     def __init__(self, width: int, height: int, title: str):
         super().__init__(width, height, title, resizable=False)
         arcade.set_background_color(arcade.color.BLACK)
@@ -73,7 +73,7 @@ class HeavenBurnsRed(arcade.Window):
             'is_multiplayer': self.is_multiplayer
         }
         
-        # Frame rate - Updated for Arcade 3.0
+        # Frame rate
         self.set_update_rate(1/FPS)
         
         # Debug info
@@ -104,13 +104,9 @@ class HeavenBurnsRed(arcade.Window):
         # Register all scenes
         self._register_all_scenes()
         
-        # Set main menu as fallback scene
-        self.director.set_fallback_scene("main_menu")
-        
         # Start with main menu
         self.director.push_scene("main_menu")
         print("Game setup complete!")
-        print(self.director.get_scene_stack_info())
         
     def _register_all_scenes(self):
         """Register all game scenes"""
@@ -151,7 +147,7 @@ class HeavenBurnsRed(arcade.Window):
         )
         
     def on_draw(self):
-        """Render the game - Updated for Arcade 3.0"""
+        """Render the game"""
         self.clear()
         self.director.draw()
         
@@ -165,14 +161,10 @@ class HeavenBurnsRed(arcade.Window):
             )
         
     def on_update(self, delta_time: float):
-        def on_update(self, delta_time: float):
-            """Update game logic"""
-            self.director.update(delta_time)
-            self.input_manager.update_controller()
-            
-            # Reset input frame tracking at end of frame
-            self.input_manager.reset_frame()
-            
+        """Update game logic"""
+        self.director.update(delta_time)
+        self.input_manager.update_controller()
+        
         # Process network messages if multiplayer
         if self.is_multiplayer and self.game_client:
             # This would be async in real implementation
@@ -183,20 +175,11 @@ class HeavenBurnsRed(arcade.Window):
         # Toggle FPS display
         if key == arcade.key.F1:
             self.show_fps = not self.show_fps
-            return
             
-        # Debug: Print scene stack
-        if key == arcade.key.F2:
-            print("=== Scene Stack Debug ===")
-            print(self.director.get_scene_stack_info())
-            return
-            
-        # Pass to input manager first
+        # Pass to input manager and current scene
         self.input_manager.on_key_press(key, modifiers)
-        
-        # Then pass to current scene for any additional handling
         current_scene = self.director.get_current_scene()
-        if current_scene and hasattr(current_scene, 'on_key_press'):
+        if current_scene:
             current_scene.on_key_press(key, modifiers)
             
     def on_key_release(self, key, modifiers):
@@ -208,6 +191,7 @@ class HeavenBurnsRed(arcade.Window):
             
     def on_mouse_motion(self, x, y, dx, dy):
         """Handle mouse motion"""
+        self.input_manager.on_mouse_motion(x, y, dx, dy)
         current_scene = self.director.get_current_scene()
         if current_scene:
             current_scene.on_mouse_motion(x, y, dx, dy)
@@ -219,40 +203,13 @@ class HeavenBurnsRed(arcade.Window):
             current_scene.on_mouse_press(x, y, button, modifiers)
             
     def close(self):
-        """Handle window close - Updated for Arcade 3.0"""
+        """Handle window close"""
         print("Saving game before exit...")
         # Auto-save on exit
         if self.save_manager.current_save:
             self.save_manager.save_game(1)
             print("Game saved!")
         super().close()
-
-# Update SquadSelectMenu to properly handle character selection
-def update_squad_select_menu():
-    """Patch to add character selection transition"""
-    original_select = SquadSelectMenu.select_item
-    
-    def new_select_item(self):
-        if not self.showing_character_select:
-            # Enter character selection for this squad
-            self.showing_character_select = True
-            squad = self.squads[self.selected_squad_index]
-            self.character_info.set_character(squad['members'][0])
-        else:
-            # Character selected, create character select menu
-            squad = self.squads[self.selected_squad_index]
-            char_select = CharacterSelectMenu(
-                self.director, 
-                self.input_manager,
-                squad
-            )
-            self.director.register_scene("character_select", char_select)
-            self.director.push_scene("character_select")
-            
-    SquadSelectMenu.select_item = new_select_item
-
-# Apply the patch
-update_squad_select_menu()
 
 def main():
     """Main function with server option"""

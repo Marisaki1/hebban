@@ -1,5 +1,5 @@
 import arcade
-from typing import Dict, List, Callable, Any
+from typing import Dict, List, Callable, Any, Set
 from enum import Enum
 
 class InputAction(Enum):
@@ -24,7 +24,7 @@ class InputType(Enum):
     CONTROLLER = "controller"
 
 class InputManager:
-    """Universal input manager for keyboard, mouse, and controller"""
+    """Universal input manager with proper callback cleanup"""
     def __init__(self):
         self.input_mappings: Dict[InputAction, List[Any]] = {
             InputAction.MENU_UP: [arcade.key.UP, arcade.key.W],
@@ -32,8 +32,8 @@ class InputManager:
             InputAction.MENU_LEFT: [arcade.key.LEFT, arcade.key.A],
             InputAction.MENU_RIGHT: [arcade.key.RIGHT, arcade.key.D],
             InputAction.SELECT: [arcade.key.ENTER, arcade.key.SPACE],
-            InputAction.BACK: [arcade.key.ESCAPE, arcade.key.BACKSPACE],  # Only ESCAPE and BACKSPACE
-            InputAction.PAUSE: [arcade.key.P],  # Only P key for pause
+            InputAction.BACK: [arcade.key.ESCAPE, arcade.key.BACKSPACE],
+            InputAction.PAUSE: [arcade.key.P, arcade.key.ESCAPE],
             InputAction.JUMP: [arcade.key.SPACE, arcade.key.W],
             InputAction.MOVE_LEFT: [arcade.key.LEFT, arcade.key.A],
             InputAction.MOVE_RIGHT: [arcade.key.RIGHT, arcade.key.D],
@@ -42,7 +42,6 @@ class InputManager:
         }
         
         self.controller_mappings: Dict[InputAction, List[int]] = {
-            # Xbox controller mappings
             InputAction.SELECT: [0],  # A button
             InputAction.BACK: [1],    # B button
             InputAction.JUMP: [0],    # A button
@@ -50,32 +49,65 @@ class InputManager:
             InputAction.ACTION_2: [3], # Y button
         }
         
-        self.pressed_keys: set = set()
-        self.pressed_buttons: set = set()
+        self.pressed_keys: Set[int] = set()
+        self.pressed_buttons: Set[int] = set()
         self.action_callbacks: Dict[InputAction, List[Callable]] = {}
         self.last_input_type = InputType.KEYBOARD
+        
+        # Track callbacks by scene to allow proper cleanup
+        self.scene_callbacks: Dict[str, Dict[InputAction, List[Callable]]] = {}
+        self.current_scene: str = None
         
         # Controller state
         self.controller = None
         self.controller_deadzone = 0.2
         
-        # Track processed keys to prevent duplicate actions
-        self.processed_keys_this_frame: set = set()
+        # Mouse state
+        self.mouse_x = 0
+        self.mouse_y = 0
         
-    def clear_all_callbacks(self):
-        """Clear all action callbacks"""
-        self.action_callbacks.clear()
-        
-    def clear_callbacks_for_action(self, action: InputAction):
-        """Clear callbacks for specific action"""
-        if action in self.action_callbacks:
-            self.action_callbacks[action].clear()
-        
-    def register_action_callback(self, action: InputAction, callback: Callable):
-        """Register a callback for an input action"""
+    def set_current_scene(self, scene_name: str):
+        """Set the current scene for callback management"""
+        self.current_scene = scene_name
+        if scene_name not in self.scene_callbacks:
+            self.scene_callbacks[scene_name] = {}
+            
+    def register_action_callback(self, action: InputAction, callback: Callable, scene_name: str = None):
+        """Register a callback for an input action with scene tracking"""
+        if scene_name is None:
+            scene_name = self.current_scene
+            
+        # Initialize structures if needed
         if action not in self.action_callbacks:
             self.action_callbacks[action] = []
+            
+        if scene_name not in self.scene_callbacks:
+            self.scene_callbacks[scene_name] = {}
+            
+        if action not in self.scene_callbacks[scene_name]:
+            self.scene_callbacks[scene_name][action] = []
+            
+        # Add callback to both global and scene-specific lists
         self.action_callbacks[action].append(callback)
+        self.scene_callbacks[scene_name][action].append(callback)
+        
+    def clear_scene_callbacks(self, scene_name: str):
+        """Clear all callbacks for a specific scene"""
+        if scene_name in self.scene_callbacks:
+            # Remove callbacks from global list
+            for action, callbacks in self.scene_callbacks[scene_name].items():
+                if action in self.action_callbacks:
+                    for callback in callbacks:
+                        if callback in self.action_callbacks[action]:
+                            self.action_callbacks[action].remove(callback)
+            
+            # Clear scene callbacks
+            self.scene_callbacks[scene_name].clear()
+            
+    def clear_all_callbacks(self):
+        """Clear all callbacks"""
+        self.action_callbacks.clear()
+        self.scene_callbacks.clear()
         
     def is_action_pressed(self, action: InputAction) -> bool:
         """Check if an action is currently pressed"""
@@ -95,32 +127,28 @@ class InputManager:
         
     def on_key_press(self, key, modifiers):
         """Handle key press events"""
-        if key in self.processed_keys_this_frame:
-            return  # Already processed this frame
-            
         self.pressed_keys.add(key)
-        self.processed_keys_this_frame.add(key)
         self.last_input_type = InputType.KEYBOARD
         
         # Check for action triggers
         for action, keys in self.input_mappings.items():
             if key in keys and action in self.action_callbacks:
-                for callback in self.action_callbacks[action]:
-                    try:
-                        callback()
-                    except Exception as e:
-                        print(f"Error in input callback for {action}: {e}")
-                break  # Only trigger one action per key press
+                # Execute callbacks in reverse order (most recent first)
+                for callback in reversed(self.action_callbacks[action]):
+                    callback()
                     
     def on_key_release(self, key, modifiers):
         """Handle key release events"""
         self.pressed_keys.discard(key)
-        self.processed_keys_this_frame.discard(key)
+        
+    def on_mouse_motion(self, x, y, dx, dy):
+        """Track mouse position"""
+        self.mouse_x = x
+        self.mouse_y = y
         
     def update_controller(self):
         """Update controller state"""
         # This would interface with arcade's controller support
-        # Implementation depends on arcade version
         pass
         
     def get_movement_vector(self) -> tuple:
@@ -139,7 +167,3 @@ class InputManager:
             y *= 0.707
             
         return x, y
-        
-    def reset_frame(self):
-        """Reset per-frame tracking - call this at the end of each frame"""
-        self.processed_keys_this_frame.clear()

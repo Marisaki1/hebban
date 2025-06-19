@@ -4,7 +4,7 @@ from src.input.input_manager import InputManager, InputAction
 from typing import List, Callable
 
 class MenuItem:
-    """Individual menu item"""
+    """Individual menu item with better mouse support"""
     def __init__(self, text: str, action: Callable, x: float, y: float):
         self.text = text
         self.action = action
@@ -20,16 +20,25 @@ class MenuItem:
         # Draw background
         if self.is_selected:
             color = arcade.color.CRIMSON
+            border_width = 3
         elif self.is_hovered:
             color = arcade.color.DARK_RED
+            border_width = 2
         else:
             color = arcade.color.DARK_GRAY
+            border_width = 1
             
         arcade.draw_rectangle_filled(
             self.x, self.y, self.width, self.height, color
         )
         
-        # Draw text - Updated for Arcade 3.0
+        # Draw border
+        arcade.draw_rectangle_outline(
+            self.x, self.y, self.width, self.height,
+            arcade.color.WHITE, border_width
+        )
+        
+        # Draw text
         arcade.draw_text(
             self.text,
             self.x,
@@ -49,118 +58,135 @@ class MenuItem:
                 self.y - half_height <= y <= self.y + half_height)
 
 class MenuState(Scene):
-    """Base class for all menu states"""
+    """Base class for all menu states with fixed navigation"""
     def __init__(self, director, input_manager: InputManager):
         super().__init__(director)
         self.input_manager = input_manager
         self.menu_items: List[MenuItem] = []
         self.selected_index = 0
         self.title = "Menu"
-        self.callbacks_registered = False
+        self.scene_name = self.__class__.__name__
+        
+        # Track if we're already handling input to prevent double-triggers
+        self.input_handled = False
         
     def on_enter(self):
         """Setup input callbacks when entering menu"""
-        print(f"Entering menu: {self.title}")
-        self.clear_input_callbacks()
-        self.register_input_callbacks()
+        # Set current scene in input manager
+        self.input_manager.set_current_scene(self.scene_name)
         
+        # Clear any existing callbacks for this scene
+        self.input_manager.clear_scene_callbacks(self.scene_name)
+        
+        # Register fresh callbacks
+        self.input_manager.register_action_callback(
+            InputAction.MENU_UP, self.navigate_up, self.scene_name
+        )
+        self.input_manager.register_action_callback(
+            InputAction.MENU_DOWN, self.navigate_down, self.scene_name
+        )
+        self.input_manager.register_action_callback(
+            InputAction.SELECT, self.select_item, self.scene_name
+        )
+        self.input_manager.register_action_callback(
+            InputAction.BACK, self.go_back, self.scene_name
+        )
+        
+        # Ensure first item is selected if we have items
+        if self.menu_items and not any(item.is_selected for item in self.menu_items):
+            self.menu_items[0].is_selected = True
+            self.selected_index = 0
+            
     def on_exit(self):
-        """Clean up when exiting menu"""
-        print(f"Exiting menu: {self.title}")
-        self.clear_input_callbacks()
+        """Cleanup when leaving menu"""
+        # Clear this scene's callbacks
+        self.input_manager.clear_scene_callbacks(self.scene_name)
         
     def on_pause(self):
         """Called when scene is paused"""
-        print(f"Pausing menu: {self.title}")
+        # Clear callbacks when paused
+        self.input_manager.clear_scene_callbacks(self.scene_name)
         
     def on_resume(self):
         """Called when scene is resumed"""
-        print(f"Resuming menu: {self.title}")
-        self.clear_input_callbacks()
-        self.register_input_callbacks()
-        
-    def clear_input_callbacks(self):
-        """Clear input callbacks to prevent conflicts"""
-        if self.callbacks_registered:
-            self.input_manager.clear_callbacks_for_action(InputAction.MENU_UP)
-            self.input_manager.clear_callbacks_for_action(InputAction.MENU_DOWN)
-            self.input_manager.clear_callbacks_for_action(InputAction.MENU_LEFT)
-            self.input_manager.clear_callbacks_for_action(InputAction.MENU_RIGHT)
-            self.input_manager.clear_callbacks_for_action(InputAction.SELECT)
-            self.input_manager.clear_callbacks_for_action(InputAction.BACK)
-            self.callbacks_registered = False
-        
-    def register_input_callbacks(self):
-        """Register input callbacks"""
-        if not self.callbacks_registered:
-            self.input_manager.register_action_callback(
-                InputAction.MENU_UP, self.navigate_up
-            )
-            self.input_manager.register_action_callback(
-                InputAction.MENU_DOWN, self.navigate_down
-            )
-            self.input_manager.register_action_callback(
-                InputAction.SELECT, self.select_item
-            )
-            self.input_manager.register_action_callback(
-                InputAction.BACK, self.go_back
-            )
-            self.callbacks_registered = True
+        # Re-register callbacks when resumed
+        self.on_enter()
         
     def navigate_up(self):
         """Navigate to previous menu item"""
-        if self.menu_items:
+        if self.menu_items and not self.input_handled:
+            self.input_handled = True
             self.menu_items[self.selected_index].is_selected = False
             self.selected_index = (self.selected_index - 1) % len(self.menu_items)
             self.menu_items[self.selected_index].is_selected = True
+            # Clear all hover states
+            for item in self.menu_items:
+                item.is_hovered = False
             
     def navigate_down(self):
         """Navigate to next menu item"""
-        if self.menu_items:
+        if self.menu_items and not self.input_handled:
+            self.input_handled = True
             self.menu_items[self.selected_index].is_selected = False
             self.selected_index = (self.selected_index + 1) % len(self.menu_items)
             self.menu_items[self.selected_index].is_selected = True
+            # Clear all hover states
+            for item in self.menu_items:
+                item.is_hovered = False
             
     def select_item(self):
         """Select current menu item"""
-        if self.menu_items and 0 <= self.selected_index < len(self.menu_items):
-            try:
-                self.menu_items[self.selected_index].action()
-            except Exception as e:
-                print(f"Error executing menu action: {e}")
+        if self.menu_items and 0 <= self.selected_index < len(self.menu_items) and not self.input_handled:
+            self.input_handled = True
+            self.menu_items[self.selected_index].action()
             
     def go_back(self):
         """Go back to previous menu"""
-        print(f"Going back from {self.title}")
-        # Check if there's a previous scene to go back to
-        if len(self.director.scene_stack) > 1:
+        if not self.input_handled:
+            self.input_handled = True
             self.director.pop_scene()
-        else:
-            # If this is the main menu or only scene, don't pop
-            print("Cannot go back - this is the root scene")
-            
+        
     def on_mouse_motion(self, x, y, dx, dy):
-        """Handle mouse hover"""
+        """Handle mouse hover with improved selection"""
+        mouse_over_item = False
+        
         for i, item in enumerate(self.menu_items):
             if item.contains_point(x, y):
+                mouse_over_item = True
+                item.is_hovered = True
+                
+                # Update selection if mouse is over a different item
                 if self.selected_index != i:
-                    self.menu_items[self.selected_index].is_selected = False
+                    # Deselect previous item
+                    if 0 <= self.selected_index < len(self.menu_items):
+                        self.menu_items[self.selected_index].is_selected = False
+                    
+                    # Select new item
                     self.selected_index = i
                     item.is_selected = True
-                item.is_hovered = True
             else:
                 item.is_hovered = False
                 
     def on_mouse_press(self, x, y, button, modifiers):
         """Handle mouse click"""
         if button == arcade.MOUSE_BUTTON_LEFT:
-            for item in self.menu_items:
+            for i, item in enumerate(self.menu_items):
                 if item.contains_point(x, y):
-                    try:
-                        item.action()
-                    except Exception as e:
-                        print(f"Error executing menu action: {e}")
+                    # Update selection first
+                    if self.selected_index != i:
+                        if 0 <= self.selected_index < len(self.menu_items):
+                            self.menu_items[self.selected_index].is_selected = False
+                        self.selected_index = i
+                        item.is_selected = True
+                    
+                    # Then execute action
+                    item.action()
                     break
+                    
+    def update(self, delta_time: float):
+        """Update menu state"""
+        # Reset input handled flag each frame
+        self.input_handled = False
                     
     def draw(self):
         """Draw the menu"""
@@ -171,7 +197,7 @@ class MenuState(Scene):
             640, 360, 1280, 720, (20, 20, 20)
         )
         
-        # Draw title - Updated for Arcade 3.0
+        # Draw title
         arcade.draw_text(
             self.title,
             640,

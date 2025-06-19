@@ -1,10 +1,10 @@
 {
   "save_id": "f08af471",
-  "timestamp": "2025-06-19T14:10:05.307269",
+  "timestamp": "2025-06-19T22:33:38.101490",
   "game_data": {
     "version": "1.0.0",
     "player_name": "Player",
-    "selected_squad": "squad_alpha",
+    "selected_squad": "squad_bravo",
     "selected_character": null,
     "unlocked_squads": [
       "31A"

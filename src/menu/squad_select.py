@@ -1,5 +1,3 @@
-# Fixed SquadSelectMenu with proper ESC handling
-
 import arcade
 import json
 from src.menu.menu_state import MenuState
@@ -7,7 +5,7 @@ from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 from src.input.input_manager import InputAction
 
 class SquadCard:
-    """Visual representation of a squad"""
+    """Visual representation of a squad with mouse support"""
     def __init__(self, squad_data: dict, x: float, y: float, index: int):
         self.data = squad_data
         self.x = x
@@ -17,6 +15,13 @@ class SquadCard:
         self.height = 280
         self.is_selected = False
         self.is_hovered = False
+        
+    def contains_point(self, x: float, y: float) -> bool:
+        """Check if point is within card bounds"""
+        half_width = self.width / 2
+        half_height = self.height / 2
+        return (self.x - half_width <= x <= self.x + half_width and
+                self.y - half_height <= y <= self.y + half_height)
         
     def draw(self):
         """Draw the squad card"""
@@ -76,7 +81,7 @@ class SquadCard:
                 anchor_x="center",
                 anchor_y="center"
             )
-
+            
 class CharacterInfo:
     """Character information panel"""
     def __init__(self, x: float, y: float):
@@ -171,10 +176,11 @@ class CharacterInfo:
             )
 
 class SquadSelectMenu(MenuState):
-    """Squad selection menu with character grid"""
+    """Squad selection menu with character grid and proper navigation"""
     def __init__(self, director, input_manager):
         super().__init__(director, input_manager)
         self.title = "Select Your Squad"
+        self.scene_name = "squad_select"
         
         # Load squad data
         self.squads = self.load_squads()
@@ -192,8 +198,8 @@ class SquadSelectMenu(MenuState):
         # Create squad cards
         self.create_squad_cards()
         
-        # Clear default menu items since we handle our own navigation
-        self.menu_items = []
+        # Track input state
+        self.input_cooldown = 0
         
     def load_squads(self):
         """Load squad data from configuration"""
@@ -251,65 +257,110 @@ class SquadSelectMenu(MenuState):
             )
             if i == 0:
                 card.is_selected = True
+                # Show first character of first squad
+                self.character_info.set_character(squad['members'][0])
             self.squad_cards.append(card)
             
-    def register_input_callbacks(self):
-        """Override to register squad-specific controls"""
-        super().register_input_callbacks()
+    def on_enter(self):
+        """Override to setup squad-specific controls"""
+        # Call parent to set up basic navigation
+        super().on_enter()
         
-        # Clear default left/right (we'll handle them ourselves)
-        self.input_manager.clear_callbacks_for_action(InputAction.MENU_LEFT)
-        self.input_manager.clear_callbacks_for_action(InputAction.MENU_RIGHT)
+        # Clear and re-register our specific controls
+        self.input_manager.clear_scene_callbacks(self.scene_name)
         
-        # Register squad navigation
+        # Navigation callbacks
         self.input_manager.register_action_callback(
-            InputAction.MENU_LEFT, self.select_previous_squad
+            InputAction.MENU_LEFT, self.select_previous_squad, self.scene_name
         )
         self.input_manager.register_action_callback(
-            InputAction.MENU_RIGHT, self.select_next_squad
+            InputAction.MENU_RIGHT, self.select_next_squad, self.scene_name
         )
+        self.input_manager.register_action_callback(
+            InputAction.SELECT, self.select_item, self.scene_name
+        )
+        self.input_manager.register_action_callback(
+            InputAction.BACK, self.go_back, self.scene_name
+        )
+        
+    def update(self, delta_time: float):
+        """Update squad select state"""
+        super().update(delta_time)
+        if self.input_cooldown > 0:
+            self.input_cooldown -= delta_time
         
     def select_previous_squad(self):
         """Select previous squad"""
-        if not self.showing_character_select:
+        if not self.showing_character_select and self.input_cooldown <= 0:
+            self.input_cooldown = 0.2  # Prevent rapid switching
             self.squad_cards[self.selected_squad_index].is_selected = False
             self.selected_squad_index = (self.selected_squad_index - 1) % len(self.squad_cards)
             self.squad_cards[self.selected_squad_index].is_selected = True
             
+            # Update character info to show first character of new squad
+            squad = self.squads[self.selected_squad_index]
+            self.character_info.set_character(squad['members'][0])
+            
     def select_next_squad(self):
         """Select next squad"""
-        if not self.showing_character_select:
+        if not self.showing_character_select and self.input_cooldown <= 0:
+            self.input_cooldown = 0.2  # Prevent rapid switching
             self.squad_cards[self.selected_squad_index].is_selected = False
             self.selected_squad_index = (self.selected_squad_index + 1) % len(self.squad_cards)
             self.squad_cards[self.selected_squad_index].is_selected = True
             
-    def select_item(self):
-        """Override to handle squad selection"""
-        if not self.showing_character_select:
-            # Enter character selection for this squad
-            self.showing_character_select = True
+            # Update character info to show first character of new squad
             squad = self.squads[self.selected_squad_index]
             self.character_info.set_character(squad['members'][0])
-        else:
-            # Character selected, create character select menu
-            squad = self.squads[self.selected_squad_index]
-            from src.menu.character_select import CharacterSelectMenu
-            char_select = CharacterSelectMenu(
-                self.director, 
-                self.input_manager,
-                squad
-            )
-            self.director.register_scene("character_select", char_select)
-            self.director.push_scene("character_select")
             
+    def select_item(self):
+        """Override to handle squad selection"""
+        if self.input_cooldown <= 0:
+            self.input_cooldown = 0.2
+            if not self.showing_character_select:
+                # Go to character selection
+                from src.menu.character_select import CharacterSelectMenu
+                squad = self.squads[self.selected_squad_index]
+                char_select = CharacterSelectMenu(
+                    self.director, 
+                    self.input_manager,
+                    squad
+                )
+                self.director.register_scene("character_select", char_select)
+                self.director.push_scene("character_select")
+                
     def go_back(self):
-        """Override to handle custom back behavior"""
-        if self.showing_character_select:
-            # Exit character selection mode
-            self.showing_character_select = False
-        else:
-            # Go back to main menu
-            super().go_back()
+        """Override to handle going back properly"""
+        if self.input_cooldown <= 0:
+            self.input_cooldown = 0.2
+            if self.showing_character_select:
+                self.showing_character_select = False
+            else:
+                self.director.pop_scene()
+                
+    def on_mouse_motion(self, x, y, dx, dy):
+        """Handle mouse hover over squad cards"""
+        for card in self.squad_cards:
+            card.is_hovered = card.contains_point(x, y)
+            
+    def on_mouse_press(self, x, y, button, modifiers):
+        """Handle mouse click on squad cards"""
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            for i, card in enumerate(self.squad_cards):
+                if card.contains_point(x, y):
+                    # Select this squad
+                    if self.selected_squad_index != i:
+                        self.squad_cards[self.selected_squad_index].is_selected = False
+                        self.selected_squad_index = i
+                        card.is_selected = True
+                        
+                        # Update character info
+                        squad = self.squads[self.selected_squad_index]
+                        self.character_info.set_character(squad['members'][0])
+                    else:
+                        # If already selected, proceed to character selection
+                        self.select_item()
+                    break
             
     def draw(self):
         """Draw squad selection screen"""
@@ -342,12 +393,8 @@ class SquadSelectMenu(MenuState):
         self.character_info.draw()
         
         # Draw instructions
-        instruction = "Use LEFT/RIGHT to select squad, ENTER to confirm, ESC to go back"
-        if self.showing_character_select:
-            instruction = "Character selection mode - ENTER to proceed, ESC to go back"
-            
         arcade.draw_text(
-            instruction,
+            "Use LEFT/RIGHT to select squad, ENTER to confirm, ESC to go back",
             SCREEN_WIDTH // 2,
             50,
             arcade.color.WHITE,

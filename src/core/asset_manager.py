@@ -6,6 +6,8 @@ import arcade
 from typing import Dict, Optional
 from PIL import Image, ImageDraw
 
+from src.core.asset_loader import AssetLoader
+
 class AssetManager:
     """Manages game assets with fallback support"""
     _instance = None
@@ -71,3 +73,26 @@ class AssetManager:
         """Create an error texture"""
         image = Image.new('RGBA', (64, 64), (255, 0, 255, 255))
         return arcade.Texture(image=image, name='error')
+    
+
+    def load_game_assets(self):
+        """Load all game assets"""
+        # Load character sprites
+        characters = ['ruka', 'yuki', 'karen', 'tsukasa']
+        for char in characters:
+            AssetLoader.load_character_sprites(self, char)
+            
+        # Load UI elements
+        ui_assets = [
+            'button_normal.png',
+            'button_hover.png',
+            'button_pressed.png',
+            'health_bar_bg.png',
+            'health_bar_fill.png'
+        ]
+        
+        for asset in ui_assets:
+            path = f"assets/sprites/ui/{asset}"
+            if os.path.exists(path):
+                name = asset.replace('.png', '')
+                self.textures[name] = arcade.load_texture(path)
