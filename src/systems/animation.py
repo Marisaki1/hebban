@@ -4,6 +4,8 @@
 from enum import Enum
 from typing import Dict, List
 
+import arcade
+
 class AnimationState(Enum):
     """Character animation states"""
     IDLE = "idle"

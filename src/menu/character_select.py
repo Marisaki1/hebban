@@ -1,6 +1,15 @@
 # ============================================================================
 # FILE: src/menu/character_select.py
 # ============================================================================
+from typing import List
+import arcade
+
+from src.core.constants import SCREEN_HEIGHT, SCREEN_WIDTH
+from src.input.input_manager import InputAction
+from src.menu.menu_state import MenuState
+from src.menu.squad_select import CharacterInfo
+
+
 class CharacterGrid:
     """3x2 character selection grid"""
     def __init__(self, x: float, y: float, characters: List[dict]):

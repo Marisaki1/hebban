@@ -2,7 +2,7 @@
 # FILE: src/entities/player.py
 # ============================================================================
 import arcade
-from src.systems.animation import AnimationController, AnimationState
+from src.systems.animation import Animation, AnimationController, AnimationState
 from src.input.input_manager import InputAction
 from typing import Optional, List
 

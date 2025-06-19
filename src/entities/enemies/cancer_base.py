@@ -1,6 +1,13 @@
 # ============================================================================
 # FILE: src/entities/enemies/cancer_base.py
 # ============================================================================
+from typing import List
+
+import arcade
+
+from src.entities.player import Player
+
+
 class CancerEnemy(arcade.Sprite):
     """Base class for Cancer enemies"""
     def __init__(self, enemy_type: str, size: str = "small"):

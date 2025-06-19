@@ -1,6 +1,12 @@
 # ============================================================================
 # FILE: src/menu/leaderboard.py
 # ============================================================================
+from typing import Dict, List
+import arcade
+
+from src.core.constants import SCREEN_HEIGHT, SCREEN_WIDTH
+from src.menu.menu_state import MenuState
+
 class LeaderboardEntry:
     """Single leaderboard entry"""
     def __init__(self, rank: int, name: str, score: int, time: str, stage: str):

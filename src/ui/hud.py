@@ -1,6 +1,12 @@
 # ============================================================================
 # FILE: src/ui/hud.py
 # ============================================================================
+from typing import List
+import arcade
+
+from src.core.constants import SCREEN_HEIGHT, SCREEN_WIDTH
+from src.entities.player import Player
+
 class HUD:
     """In-game heads-up display"""
     def __init__(self, player: Player):

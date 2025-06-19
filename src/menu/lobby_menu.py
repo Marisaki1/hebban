@@ -1,6 +1,12 @@
 # ============================================================================
 # FILE: src/menu/lobby_menu.py
 # ============================================================================
+from typing import List
+import arcade
+
+from src.core.constants import SCREEN_HEIGHT, SCREEN_WIDTH
+from src.menu.menu_state import MenuItem, MenuState
+
 class LobbyMenu(MenuState):
     """Multiplayer lobby for hosting/joining games"""
     def __init__(self, director, input_manager):

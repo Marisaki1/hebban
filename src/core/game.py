@@ -1,6 +1,21 @@
 # ============================================================================
 # FILE: src/core/game.py - Updated with all systems
 # ============================================================================
+import arcade
+
+from src.core.asset_manager import AssetManager
+from src.core.constants import FPS
+from src.core.director import Director
+from src.input.input_manager import InputManager
+from src.menu.leaderboard import LeaderboardMenu
+from src.menu.lobby_menu import LobbyMenu
+from src.menu.main_menu import MainMenu
+from src.menu.settings_menu import SettingsMenu
+from src.menu.squad_select import SquadSelectMenu
+from src.save.save_manager import SaveData, SaveManager
+from src.systems.gravity import GravityManager
+
+
 class HeavenBurnsRed(arcade.Window):
     """Main game class with all systems integrated"""
     def __init__(self, width: int, height: int, title: str):
