@@ -104,9 +104,13 @@ class HeavenBurnsRed(arcade.Window):
         # Register all scenes
         self._register_all_scenes()
         
+        # Set main menu as fallback scene
+        self.director.set_fallback_scene("main_menu")
+        
         # Start with main menu
         self.director.push_scene("main_menu")
         print("Game setup complete!")
+        print(self.director.get_scene_stack_info())
         
     def _register_all_scenes(self):
         """Register all game scenes"""
@@ -161,10 +165,14 @@ class HeavenBurnsRed(arcade.Window):
             )
         
     def on_update(self, delta_time: float):
-        """Update game logic"""
-        self.director.update(delta_time)
-        self.input_manager.update_controller()
-        
+        def on_update(self, delta_time: float):
+            """Update game logic"""
+            self.director.update(delta_time)
+            self.input_manager.update_controller()
+            
+            # Reset input frame tracking at end of frame
+            self.input_manager.reset_frame()
+            
         # Process network messages if multiplayer
         if self.is_multiplayer and self.game_client:
             # This would be async in real implementation
@@ -175,11 +183,20 @@ class HeavenBurnsRed(arcade.Window):
         # Toggle FPS display
         if key == arcade.key.F1:
             self.show_fps = not self.show_fps
+            return
             
-        # Pass to input manager and current scene
+        # Debug: Print scene stack
+        if key == arcade.key.F2:
+            print("=== Scene Stack Debug ===")
+            print(self.director.get_scene_stack_info())
+            return
+            
+        # Pass to input manager first
         self.input_manager.on_key_press(key, modifiers)
+        
+        # Then pass to current scene for any additional handling
         current_scene = self.director.get_current_scene()
-        if current_scene:
+        if current_scene and hasattr(current_scene, 'on_key_press'):
             current_scene.on_key_press(key, modifiers)
             
     def on_key_release(self, key, modifiers):

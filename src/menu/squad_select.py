@@ -1,3 +1,5 @@
+# Fixed SquadSelectMenu with proper ESC handling
+
 import arcade
 import json
 from src.menu.menu_state import MenuState
@@ -74,7 +76,7 @@ class SquadCard:
                 anchor_x="center",
                 anchor_y="center"
             )
-            
+
 class CharacterInfo:
     """Character information panel"""
     def __init__(self, x: float, y: float):
@@ -190,6 +192,9 @@ class SquadSelectMenu(MenuState):
         # Create squad cards
         self.create_squad_cards()
         
+        # Clear default menu items since we handle our own navigation
+        self.menu_items = []
+        
     def load_squads(self):
         """Load squad data from configuration"""
         # Default squad data for testing
@@ -248,11 +253,15 @@ class SquadSelectMenu(MenuState):
                 card.is_selected = True
             self.squad_cards.append(card)
             
-    def on_enter(self):
-        """Override to setup squad-specific controls"""
-        super().on_enter()
+    def register_input_callbacks(self):
+        """Override to register squad-specific controls"""
+        super().register_input_callbacks()
         
-        # Additional controls for squad selection
+        # Clear default left/right (we'll handle them ourselves)
+        self.input_manager.clear_callbacks_for_action(InputAction.MENU_LEFT)
+        self.input_manager.clear_callbacks_for_action(InputAction.MENU_RIGHT)
+        
+        # Register squad navigation
         self.input_manager.register_action_callback(
             InputAction.MENU_LEFT, self.select_previous_squad
         )
@@ -282,8 +291,25 @@ class SquadSelectMenu(MenuState):
             squad = self.squads[self.selected_squad_index]
             self.character_info.set_character(squad['members'][0])
         else:
-            # Character selected, proceed to game
+            # Character selected, create character select menu
+            squad = self.squads[self.selected_squad_index]
+            from src.menu.character_select import CharacterSelectMenu
+            char_select = CharacterSelectMenu(
+                self.director, 
+                self.input_manager,
+                squad
+            )
+            self.director.register_scene("character_select", char_select)
             self.director.push_scene("character_select")
+            
+    def go_back(self):
+        """Override to handle custom back behavior"""
+        if self.showing_character_select:
+            # Exit character selection mode
+            self.showing_character_select = False
+        else:
+            # Go back to main menu
+            super().go_back()
             
     def draw(self):
         """Draw squad selection screen"""
@@ -316,8 +342,12 @@ class SquadSelectMenu(MenuState):
         self.character_info.draw()
         
         # Draw instructions
+        instruction = "Use LEFT/RIGHT to select squad, ENTER to confirm, ESC to go back"
+        if self.showing_character_select:
+            instruction = "Character selection mode - ENTER to proceed, ESC to go back"
+            
         arcade.draw_text(
-            "Use LEFT/RIGHT to select squad, ENTER to confirm",
+            instruction,
             SCREEN_WIDTH // 2,
             50,
             arcade.color.WHITE,

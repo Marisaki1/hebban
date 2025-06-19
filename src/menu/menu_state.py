@@ -56,21 +56,56 @@ class MenuState(Scene):
         self.menu_items: List[MenuItem] = []
         self.selected_index = 0
         self.title = "Menu"
+        self.callbacks_registered = False
         
     def on_enter(self):
         """Setup input callbacks when entering menu"""
-        self.input_manager.register_action_callback(
-            InputAction.MENU_UP, self.navigate_up
-        )
-        self.input_manager.register_action_callback(
-            InputAction.MENU_DOWN, self.navigate_down
-        )
-        self.input_manager.register_action_callback(
-            InputAction.SELECT, self.select_item
-        )
-        self.input_manager.register_action_callback(
-            InputAction.BACK, self.go_back
-        )
+        print(f"Entering menu: {self.title}")
+        self.clear_input_callbacks()
+        self.register_input_callbacks()
+        
+    def on_exit(self):
+        """Clean up when exiting menu"""
+        print(f"Exiting menu: {self.title}")
+        self.clear_input_callbacks()
+        
+    def on_pause(self):
+        """Called when scene is paused"""
+        print(f"Pausing menu: {self.title}")
+        
+    def on_resume(self):
+        """Called when scene is resumed"""
+        print(f"Resuming menu: {self.title}")
+        self.clear_input_callbacks()
+        self.register_input_callbacks()
+        
+    def clear_input_callbacks(self):
+        """Clear input callbacks to prevent conflicts"""
+        if self.callbacks_registered:
+            self.input_manager.clear_callbacks_for_action(InputAction.MENU_UP)
+            self.input_manager.clear_callbacks_for_action(InputAction.MENU_DOWN)
+            self.input_manager.clear_callbacks_for_action(InputAction.MENU_LEFT)
+            self.input_manager.clear_callbacks_for_action(InputAction.MENU_RIGHT)
+            self.input_manager.clear_callbacks_for_action(InputAction.SELECT)
+            self.input_manager.clear_callbacks_for_action(InputAction.BACK)
+            self.callbacks_registered = False
+        
+    def register_input_callbacks(self):
+        """Register input callbacks"""
+        if not self.callbacks_registered:
+            self.input_manager.register_action_callback(
+                InputAction.MENU_UP, self.navigate_up
+            )
+            self.input_manager.register_action_callback(
+                InputAction.MENU_DOWN, self.navigate_down
+            )
+            self.input_manager.register_action_callback(
+                InputAction.SELECT, self.select_item
+            )
+            self.input_manager.register_action_callback(
+                InputAction.BACK, self.go_back
+            )
+            self.callbacks_registered = True
         
     def navigate_up(self):
         """Navigate to previous menu item"""
@@ -89,12 +124,21 @@ class MenuState(Scene):
     def select_item(self):
         """Select current menu item"""
         if self.menu_items and 0 <= self.selected_index < len(self.menu_items):
-            self.menu_items[self.selected_index].action()
+            try:
+                self.menu_items[self.selected_index].action()
+            except Exception as e:
+                print(f"Error executing menu action: {e}")
             
     def go_back(self):
         """Go back to previous menu"""
-        self.director.pop_scene()
-        
+        print(f"Going back from {self.title}")
+        # Check if there's a previous scene to go back to
+        if len(self.director.scene_stack) > 1:
+            self.director.pop_scene()
+        else:
+            # If this is the main menu or only scene, don't pop
+            print("Cannot go back - this is the root scene")
+            
     def on_mouse_motion(self, x, y, dx, dy):
         """Handle mouse hover"""
         for i, item in enumerate(self.menu_items):
@@ -112,7 +156,10 @@ class MenuState(Scene):
         if button == arcade.MOUSE_BUTTON_LEFT:
             for item in self.menu_items:
                 if item.contains_point(x, y):
-                    item.action()
+                    try:
+                        item.action()
+                    except Exception as e:
+                        print(f"Error executing menu action: {e}")
                     break
                     
     def draw(self):

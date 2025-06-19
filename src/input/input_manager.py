@@ -32,8 +32,8 @@ class InputManager:
             InputAction.MENU_LEFT: [arcade.key.LEFT, arcade.key.A],
             InputAction.MENU_RIGHT: [arcade.key.RIGHT, arcade.key.D],
             InputAction.SELECT: [arcade.key.ENTER, arcade.key.SPACE],
-            InputAction.BACK: [arcade.key.ESCAPE, arcade.key.BACKSPACE],
-            InputAction.PAUSE: [arcade.key.P, arcade.key.ESCAPE],
+            InputAction.BACK: [arcade.key.ESCAPE, arcade.key.BACKSPACE],  # Only ESCAPE and BACKSPACE
+            InputAction.PAUSE: [arcade.key.P],  # Only P key for pause
             InputAction.JUMP: [arcade.key.SPACE, arcade.key.W],
             InputAction.MOVE_LEFT: [arcade.key.LEFT, arcade.key.A],
             InputAction.MOVE_RIGHT: [arcade.key.RIGHT, arcade.key.D],
@@ -59,6 +59,18 @@ class InputManager:
         self.controller = None
         self.controller_deadzone = 0.2
         
+        # Track processed keys to prevent duplicate actions
+        self.processed_keys_this_frame: set = set()
+        
+    def clear_all_callbacks(self):
+        """Clear all action callbacks"""
+        self.action_callbacks.clear()
+        
+    def clear_callbacks_for_action(self, action: InputAction):
+        """Clear callbacks for specific action"""
+        if action in self.action_callbacks:
+            self.action_callbacks[action].clear()
+        
     def register_action_callback(self, action: InputAction, callback: Callable):
         """Register a callback for an input action"""
         if action not in self.action_callbacks:
@@ -83,18 +95,27 @@ class InputManager:
         
     def on_key_press(self, key, modifiers):
         """Handle key press events"""
+        if key in self.processed_keys_this_frame:
+            return  # Already processed this frame
+            
         self.pressed_keys.add(key)
+        self.processed_keys_this_frame.add(key)
         self.last_input_type = InputType.KEYBOARD
         
         # Check for action triggers
         for action, keys in self.input_mappings.items():
             if key in keys and action in self.action_callbacks:
                 for callback in self.action_callbacks[action]:
-                    callback()
+                    try:
+                        callback()
+                    except Exception as e:
+                        print(f"Error in input callback for {action}: {e}")
+                break  # Only trigger one action per key press
                     
     def on_key_release(self, key, modifiers):
         """Handle key release events"""
         self.pressed_keys.discard(key)
+        self.processed_keys_this_frame.discard(key)
         
     def update_controller(self):
         """Update controller state"""
@@ -118,3 +139,7 @@ class InputManager:
             y *= 0.707
             
         return x, y
+        
+    def reset_frame(self):
+        """Reset per-frame tracking - call this at the end of each frame"""
+        self.processed_keys_this_frame.clear()
