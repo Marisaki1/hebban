@@ -203,45 +203,17 @@ class SquadSelectMenu(MenuState):
         
     def load_squads(self):
         """Load squad data from configuration"""
-        # Default squad data for testing
-        return [
-            {
-                'id': 'squad_alpha',
-                'name': 'Squad Alpha',
-                'members': [
-                    {'name': 'Ruka', 'health': 100, 'speed': 6, 'jump_power': 15,
-                     'abilities': ['Double Jump', 'Dash Attack']},
-                    {'name': 'Yuki', 'health': 80, 'speed': 8, 'jump_power': 18,
-                     'abilities': ['Air Dash', 'Quick Strike']},
-                    {'name': 'Karen', 'health': 120, 'speed': 4, 'jump_power': 12,
-                     'abilities': ['Shield Bash', 'Ground Pound']},
-                    {'name': 'Tsukasa', 'health': 90, 'speed': 7, 'jump_power': 16,
-                     'abilities': ['Teleport', 'Energy Blast']},
-                    {'name': 'Megumi', 'health': 85, 'speed': 7, 'jump_power': 17,
-                     'abilities': ['Healing Aura', 'Light Beam']},
-                    {'name': 'Ichigo', 'health': 95, 'speed': 6, 'jump_power': 15,
-                     'abilities': ['Fire Ball', 'Flame Dash']}
-                ]
-            },
-            {
-                'id': 'squad_bravo',
-                'name': 'Squad Bravo',
-                'members': [
-                    {'name': 'Seika', 'health': 110, 'speed': 5, 'jump_power': 14,
-                     'abilities': ['Ice Wall', 'Freeze Ray']},
-                    {'name': 'Mion', 'health': 85, 'speed': 9, 'jump_power': 16,
-                     'abilities': ['Shadow Step', 'Smoke Bomb']},
-                    {'name': 'Aoi', 'health': 100, 'speed': 6, 'jump_power': 15,
-                     'abilities': ['Thunder Strike', 'Electric Field']},
-                    {'name': 'Sumire', 'health': 90, 'speed': 7, 'jump_power': 17,
-                     'abilities': ['Wind Slash', 'Tornado']},
-                    {'name': 'Kura', 'health': 95, 'speed': 6, 'jump_power': 15,
-                     'abilities': ['Rock Throw', 'Earth Quake']},
-                    {'name': 'Maria', 'health': 80, 'speed': 8, 'jump_power': 18,
-                     'abilities': ['Time Slow', 'Blink']}
-                ]
-            }
-        ]
+        from src.data.squad_data import get_all_squads
+        from src.core.sprite_manager import sprite_manager
+        
+        squads = get_all_squads()
+        
+        # Preload sprites for all squads
+        for squad in squads:
+            member_ids = [member['id'] for member in squad['members']]
+            sprite_manager.preload_squad_sprites(member_ids)
+            
+        return squads
         
     def create_squad_cards(self):
         """Create squad card visuals"""

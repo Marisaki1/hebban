@@ -1,22 +1,27 @@
-# ============================================================================
-# FILE: src/scenes/gameplay.py - Updated for Arcade 3.0+
-# ============================================================================
+# src/scenes/gameplay.py
+"""
+Enhanced gameplay scene with sound and particle effects
+"""
+
 import arcade
 from src.core.director import Scene
 from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 from src.entities.player import Player
 from src.entities.enemies.cancer_base import CancerEnemy
 from src.ui.hud import HUD
+from src.data.squad_data import get_character_data
+from src.core.sprite_manager import sprite_manager
+from src.core.sound_manager import sound_manager
+from src.effects.particle_system import particle_manager
 import random
 
 class GameplayScene(Scene):
-    """Main gameplay scene"""
+    """Main gameplay scene with all enhancements"""
     def __init__(self, director, input_manager):
         super().__init__(director)
         self.input_manager = input_manager
         
         # Get systems
-        self.asset_manager = director.get_system('asset_manager')
         self.gravity_manager = director.get_system('gravity_manager')
         self.save_manager = director.get_system('save_manager')
         
@@ -33,8 +38,9 @@ class GameplayScene(Scene):
         self.score = 0
         self.current_level = 1
         self.game_over = False
+        self.victory = False
         
-        # Camera - Updated for Arcade 3.0
+        # Camera
         self.camera = None
         self.gui_camera = None
         
@@ -47,13 +53,16 @@ class GameplayScene(Scene):
         
     def on_enter(self):
         """Setup gameplay scene"""
-        # Create cameras - Updated for Arcade 3.0
+        # Create cameras
         self.camera = arcade.camera.Camera2D()
         self.gui_camera = arcade.camera.Camera2D()
         
-        # Create player
+        # Clear any existing particle effects
+        particle_manager.clear()
+        
+        # Create player with selected character
         character_data = self._get_selected_character()
-        self.player = Player(character_data, self.asset_manager, self.input_manager)
+        self.player = Player(character_data, self.input_manager)
         self.player.center_x = 200
         self.player.center_y = 200
         self.player_list.append(self.player)
@@ -67,66 +76,120 @@ class GameplayScene(Scene):
         # Spawn initial enemies
         self.spawn_enemies()
         
+        # Play battle music
+        sound_manager.play_music("battle_theme")
+        
+        print(f"Gameplay started with character: {character_data['name']}")
+        
+    def on_exit(self):
+        """Cleanup when leaving gameplay"""
+        # Stop music
+        sound_manager.stop_music()
+        
+        # Clear particles
+        particle_manager.clear()
+        
+    def on_pause(self):
+        """Pause gameplay"""
+        # You could pause music here
+        pass
+        
+    def on_resume(self):
+        """Resume gameplay"""
+        # Resume music
+        pass
+        
     def _get_selected_character(self) -> dict:
-        """Get selected character data"""
+        """Get selected character data from save or default"""
         if self.save_manager and self.save_manager.current_save:
             # Get from save data
             squad_id = self.save_manager.current_save.game_data.get('selected_squad', '31A')
             char_id = self.save_manager.current_save.game_data.get('selected_character', 'ruka')
             
-            # Load from config (simplified for demo)
-            return {
-                'id': char_id,
-                'name': 'Ruka',
-                'health': 100,
-                'speed': 6,
-                'jump_power': 15,
-                'abilities': ['Double Jump', 'Dash Attack']
-            }
-        else:
-            # Default character
-            return {
-                'id': 'ruka',
-                'name': 'Ruka',
-                'health': 100,
-                'speed': 6,
-                'jump_power': 15,
-                'abilities': ['Double Jump', 'Dash Attack']
-            }
+            # Get character data from squad data
+            character = get_character_data(squad_id, char_id)
+            if character:
+                # Add the character ID if not present
+                if 'id' not in character:
+                    character['id'] = char_id
+                return character
+                
+        # Default to Ruka if nothing selected
+        return {
+            'id': 'ruka',
+            'name': 'Ruka Kayamori',
+            'health': 100,
+            'speed': 6,
+            'jump_power': 15,
+            'attack': 8,
+            'defense': 6,
+            'abilities': ['Double Jump', 'Dash Attack', 'Leadership Boost']
+        }
             
     def load_level(self, level_num: int):
         """Load level data"""
-        # Create simple test platforms
+        # Create test platforms
+        platform_color = arcade.color.DARK_GRAY
+        
+        # Ground platforms
         for x in range(0, 2000, 200):
-            platform = arcade.Sprite()
+            platform = arcade.SpriteSolidColor(200, 20, platform_color)
             platform.center_x = x
             platform.center_y = 50
-            platform.width = 200
-            platform.height = 20
-            platform.texture = self.asset_manager.get_texture('default_ui_button')
             self.platform_list.append(platform)
             
-        # Add some elevated platforms
-        positions = [(400, 200), (800, 300), (1200, 250), (1600, 350)]
-        for x, y in positions:
-            platform = arcade.Sprite()
+        # Elevated platforms with variety
+        platform_configs = [
+            # (x, y, width, height)
+            (400, 200, 150, 20),
+            (800, 300, 150, 20),
+            (1200, 250, 150, 20),
+            (1600, 350, 150, 20),
+            # Some vertical platforms
+            (600, 150, 20, 100),
+            (1000, 200, 20, 150),
+            # Floating platforms
+            (500, 400, 100, 20),
+            (900, 450, 100, 20),
+            (1300, 400, 100, 20),
+        ]
+        
+        for x, y, width, height in platform_configs:
+            platform = arcade.SpriteSolidColor(width, height, platform_color)
             platform.center_x = x
             platform.center_y = y
-            platform.width = 150
-            platform.height = 20
-            platform.texture = self.asset_manager.get_texture('default_ui_button')
             self.platform_list.append(platform)
             
     def spawn_enemies(self):
         """Spawn enemies in level"""
-        enemy_positions = [(600, 150), (1000, 150), (1400, 250)]
+        enemy_configs = [
+            # (x, y, size)
+            (600, 150, 'small'),
+            (1000, 150, 'small'),
+            (1400, 300, 'medium'),
+            (800, 400, 'small'),
+            (1200, 400, 'medium'),
+            (1800, 150, 'large'),
+        ]
         
-        for x, y in enemy_positions:
-            size = random.choice(['small', 'medium', 'large'])
+        for x, y, size in enemy_configs:
             enemy = CancerEnemy('basic', size)
             enemy.center_x = x
             enemy.center_y = y
-            enemy.texture = self.asset_manager.get_texture('default_enemy')
+            
+            # Create a simple colored rectangle for enemy
+            enemy_colors = {
+                'small': arcade.color.DARK_RED,
+                'medium': arcade.color.DARK_ORANGE,
+                'large': arcade.color.DARK_VIOLET
+            }
+            
+            enemy.texture = arcade.make_soft_square_texture(
+                int(64 * enemy.scale),
+                enemy_colors.get(size, arcade.color.DARK_RED),
+                outer_alpha=255
+            )
+            
             self.enemy_list.append(enemy)
             
     def update(self, delta_time: float):
@@ -145,21 +208,58 @@ class GameplayScene(Scene):
         hit_enemies = arcade.check_for_collision_with_list(self.player, self.enemy_list)
         for enemy in hit_enemies:
             if self.player.is_attacking:
-                enemy.take_damage(10)
-                self.score += 10 * enemy.scale
-                self.hud.score = self.score
+                # Calculate damage and hit enemy
+                damage = self.player.on_enemy_hit(enemy)
+                enemy.take_damage(damage)
                 
+                # Update score based on combo
+                base_score = 10 * enemy.scale
+                combo_bonus = self.player.attack_combo * 5
+                self.score += base_score + combo_bonus
+                self.hud.score = self.score
+            else:
+                # Enemy damages player
+                self.player.take_damage(enemy.damage)
+                
+        # Update particle effects
+        particle_manager.update(delta_time)
+        
         # Update camera to follow player
         self.center_camera_on_player()
         
         # Check win/lose conditions
         if self.player.health <= 0:
             self.game_over = True
-            # In a real implementation, show game over screen
+            sound_manager.stop_music()
+            sound_manager.play_sfx("game_over")
+            print("Game Over!")
+            # Return to main menu after delay
             self.director.change_scene('main_menu')
             
+        # Check if all enemies defeated
+        if len(self.enemy_list) == 0 and not self.victory:
+            self.victory = True
+            sound_manager.play_sfx("victory")
+            print(f"Level {self.current_level} Complete!")
+            self.current_level += 1
+            
+            # Create victory effects
+            for _ in range(5):
+                x = self.player.center_x + random.randint(-100, 100)
+                y = self.player.center_y + random.randint(-50, 100)
+                particle_manager.create_effect('sparkle', x, y)
+                
+            # Spawn more enemies after a delay (for now)
+            arcade.schedule(self.spawn_next_wave, 3.0)
+            
+    def spawn_next_wave(self, delta_time):
+        """Spawn next wave of enemies"""
+        arcade.unschedule(self.spawn_next_wave)
+        self.victory = False
+        self.spawn_enemies()
+            
     def center_camera_on_player(self):
-        """Center camera on player with bounds - Updated for Arcade 3.0"""
+        """Center camera on player with bounds"""
         # Calculate camera position
         camera_x = self.player.center_x - SCREEN_WIDTH / 2
         camera_y = self.player.center_y - SCREEN_HEIGHT / 2
@@ -184,11 +284,67 @@ class GameplayScene(Scene):
         self.player_list.draw()
         self.item_list.draw()
         
+        # Draw particle effects
+        particle_manager.draw()
+        
         # Use GUI camera for HUD
         self.gui_camera.use()
         self.hud.draw()
+        
+        # Draw debug info
+        arcade.draw_text(
+            f"Character: {self.player.character_data['name']}",
+            10, SCREEN_HEIGHT - 80,
+            arcade.color.WHITE,
+            14
+        )
+        
+        # Draw combo indicator
+        if self.player.attack_combo > 0:
+            combo_text = f"COMBO x{self.player.attack_combo}"
+            arcade.draw_text(
+                combo_text,
+                SCREEN_WIDTH // 2,
+                SCREEN_HEIGHT - 100,
+                arcade.color.YELLOW,
+                24,
+                anchor_x="center",
+                font_name="Arial",
+                bold=True
+            )
         
     def on_key_press(self, key, modifiers):
         """Handle key press"""
         if key == arcade.key.ESCAPE:
             self.director.push_scene('pause')
+            
+        # Debug: Change animation speeds with number keys
+        if key == arcade.key.KEY_1:
+            self.player.set_animation_speed('walk', 0.5)
+            print("Walk animation speed: 50%")
+        elif key == arcade.key.KEY_2:
+            self.player.set_animation_speed('walk', 1.0)
+            print("Walk animation speed: 100%")
+        elif key == arcade.key.KEY_3:
+            self.player.set_animation_speed('walk', 2.0)
+            print("Walk animation speed: 200%")
+        elif key == arcade.key.KEY_4:
+            self.player.set_animation_speed('attack1', 0.5)
+            print("Attack animation speed: 50%")
+        elif key == arcade.key.KEY_5:
+            self.player.set_animation_speed('attack1', 2.0)
+            print("Attack animation speed: 200%")
+            
+        # Debug: Test particle effects with number keys 6-9
+        elif key == arcade.key.KEY_6:
+            particle_manager.create_effect('impact', self.player.center_x, self.player.center_y)
+            print("Impact effect")
+        elif key == arcade.key.KEY_7:
+            particle_manager.create_effect('flame', self.player.center_x, self.player.center_y)
+            print("Flame effect")
+        elif key == arcade.key.KEY_8:
+            particle_manager.create_effect('healing', self.player.center_x, self.player.center_y)
+            print("Healing effect")
+        elif key == arcade.key.KEY_9:
+            particle_manager.create_effect('sparkle', self.player.center_x, self.player.center_y)
+            print("Sparkle effect")
