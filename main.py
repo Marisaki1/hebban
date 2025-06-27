@@ -1,6 +1,6 @@
 """
 Heaven Burns Red - Main Game Entry Point
-Updated for Arcade 3.0 compatibility
+Updated for Arcade 3.0 compatibility - FIXED VERSION
 """
 
 import os
@@ -47,7 +47,7 @@ from src.networking.protocol import NetworkProtocol, MessageType
 import src.utils.helpers as helpers
 
 class HeavenBurnsRed(arcade.Window):
-    """Main game class with Arcade 3.0 compatibility"""
+    """Main game class with Arcade 3.0 compatibility - FIXED"""
     def __init__(self, width: int, height: int, title: str):
         super().__init__(width, height, title, resizable=False)
         arcade.set_background_color(arcade.color.BLACK)
@@ -79,8 +79,8 @@ class HeavenBurnsRed(arcade.Window):
         # Debug info
         self.show_fps = False
         
-        # Store delta time for FPS calculation
-        self.delta_time = 1/60
+        # Store delta time for FPS calculation (renamed to avoid conflict)
+        self._last_delta_time = 1/60
         
     def setup(self):
         """Set up the game with all scenes"""
@@ -159,8 +159,9 @@ class HeavenBurnsRed(arcade.Window):
         
         # Show FPS if enabled
         if self.show_fps:
+            fps_value = round(1/self._last_delta_time) if self._last_delta_time > 0 else 0
             arcade.draw_text(
-                f"FPS: {round(1/self.delta_time) if self.delta_time > 0 else 0}",
+                f"FPS: {fps_value}",
                 10, SCREEN_HEIGHT - 30,
                 arcade.color.WHITE,
                 14
@@ -168,7 +169,10 @@ class HeavenBurnsRed(arcade.Window):
         
     def on_update(self, delta_time: float):
         """Update game logic"""
-        self.delta_time = delta_time
+        # Store delta time for FPS calculation (using our own variable)
+        self._last_delta_time = delta_time
+        
+        # Update game systems
         self.director.update(delta_time)
         self.input_manager.update_controller()
         

@@ -1,6 +1,7 @@
 import arcade
 from src.menu.menu_state import MenuState, MenuItem
 from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
+from src.core.arcade_compat import safe_draw_text
 
 class MainMenu(MenuState):
     """Main menu of the game"""
@@ -74,7 +75,7 @@ class MainMenu(MenuState):
         super().draw()
         
         # Draw additional decorative elements
-        arcade.draw_text(
+        safe_draw_text(
             "A Platform Adventure",
             SCREEN_WIDTH // 2,
             550,

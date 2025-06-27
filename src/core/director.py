@@ -1,4 +1,5 @@
 import arcade
+from src.core.arcade_compat import safe_draw_rectangle_filled, safe_draw_text
 from typing import Any, Dict, List, Optional
 
 class Scene:
@@ -151,15 +152,14 @@ class Director:
             print("Warning: No current scene to update")
             
     def draw(self):
-        """Draw current scene - Arcade 3.0 Compatible (NO arcade.start_render())"""
+        """Draw current scene - Arcade 3.0 Compatible"""
         current = self.get_current_scene()
         if current:
             current.draw()
         else:
             # Draw a fallback screen if no scene is available - Arcade 3.0 style
-            # Note: The main window should handle clearing and presenting
-            arcade.draw_rectangle_filled(640, 360, 1280, 720, (20, 20, 20))
-            arcade.draw_text(
+            safe_draw_rectangle_filled(640, 360, 1280, 720, (20, 20, 20))
+            safe_draw_text(
                 "No Scene Available",
                 640, 360,
                 arcade.color.WHITE,

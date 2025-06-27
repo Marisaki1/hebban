@@ -1,6 +1,9 @@
 import arcade
 from src.core.director import Scene
 from src.input.input_manager import InputManager, InputAction
+from src.core.arcade_compat import (
+    safe_draw_rectangle_filled, safe_draw_rectangle_outline, safe_draw_text
+)
 from typing import List, Callable
 
 class MenuItem:
@@ -28,18 +31,18 @@ class MenuItem:
             color = arcade.color.DARK_GRAY
             border_width = 1
             
-        arcade.draw_rectangle_filled(
+        safe_draw_rectangle_filled(
             self.x, self.y, self.width, self.height, color
         )
         
         # Draw border
-        arcade.draw_rectangle_outline(
+        safe_draw_rectangle_outline(
             self.x, self.y, self.width, self.height,
             arcade.color.WHITE, border_width
         )
         
         # Draw text
-        arcade.draw_text(
+        safe_draw_text(
             self.text,
             self.x,
             self.y,
@@ -189,14 +192,14 @@ class MenuState(Scene):
         self.input_handled = False
                     
     def draw(self):
-        """Draw the menu - Arcade 3.0 Compatible (NO arcade.start_render())"""
+        """Draw the menu - Arcade 3.0 Compatible"""
         # Draw background
-        arcade.draw_rectangle_filled(
+        safe_draw_rectangle_filled(
             640, 360, 1280, 720, (20, 20, 20)
         )
         
         # Draw title
-        arcade.draw_text(
+        safe_draw_text(
             self.title,
             640,
             600,
