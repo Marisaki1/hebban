@@ -1,12 +1,13 @@
-# src/scenes/gameplay.py - Arcade 3.0 Compatible
+# src/scenes/gameplay.py - Fixed for Arcade 3.0
 """
-Enhanced gameplay scene with sound and particle effects - Updated for Arcade 3.0
+Enhanced gameplay scene with sound and particle effects - Fixed for Arcade 3.0
 """
 
 import arcade
 import random
 from src.core.director import Scene
 from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
+from src.core.arcade_compat import safe_draw_rectangle_filled, safe_draw_text
 from src.entities.player import Player
 from src.entities.enemies.cancer_base import CancerEnemy
 from src.ui.hud import HUD
@@ -141,8 +142,8 @@ class GameplayScene(Scene):
         }
             
     def load_level(self, level_num: int):
-        """Load level data"""
-        # Create test platforms using Arcade 3.0 method
+        """Load level data using proper sprite creation"""
+        # Create platforms using proper Arcade 3.0 methods
         platform_color = arcade.color.DARK_GRAY
         
         # Ground platforms
@@ -191,23 +192,31 @@ class GameplayScene(Scene):
             enemy.center_x = x
             enemy.center_y = y
             
-            # Create a simple colored rectangle for enemy - Arcade 3.0 compatible
+            # Create a simple colored texture for enemy
             enemy_colors = {
                 'small': arcade.color.DARK_RED,
                 'medium': arcade.color.DARK_ORANGE,
                 'large': arcade.color.DARK_VIOLET
             }
             
-            # Arcade 3.0 texture creation
+            # Use texture creation for enemy appearance
             try:
-                enemy.texture = arcade.make_soft_square_texture(
-                    int(64 * enemy.scale),
-                    enemy_colors.get(size, arcade.color.DARK_RED),
-                    outer_alpha=255
+                enemy.texture = arcade.Texture.create_filled(
+                    f"enemy_{size}",
+                    (int(64 * enemy.scale), int(64 * enemy.scale)),
+                    enemy_colors.get(size, arcade.color.DARK_RED)
                 )
-            except Exception:
-                # Fallback for very old arcade versions
-                enemy.texture = arcade.Texture.create_empty("enemy", (int(64 * enemy.scale), int(64 * enemy.scale)))
+            except Exception as e:
+                print(f"Error creating enemy texture: {e}")
+                # Create emergency fallback texture
+                try:
+                    from PIL import Image
+                    size_px = int(64 * enemy.scale)
+                    image = Image.new('RGBA', (size_px, size_px), enemy_colors.get(size, arcade.color.DARK_RED) + (255,))
+                    enemy.texture = arcade.Texture(f"enemy_{size}_fallback", image)
+                except:
+                    # Ultimate fallback - just leave texture as None
+                    pass
             
             self.enemy_list.append(enemy)
             
@@ -307,7 +316,7 @@ class GameplayScene(Scene):
         # Use game camera
         self.camera.use()
         
-        # Draw game world
+        # Draw game world using sprite lists (this should work properly)
         self.platform_list.draw()
         self.enemy_list.draw()
         self.player_list.draw()
@@ -322,8 +331,8 @@ class GameplayScene(Scene):
         if self.hud:
             self.hud.draw()
         
-        # Draw debug info
-        arcade.draw_text(
+        # Draw debug info using compatibility layer
+        safe_draw_text(
             f"Character: {self.player.character_data['name']}",
             10, SCREEN_HEIGHT - 80,
             arcade.color.WHITE,
@@ -333,15 +342,13 @@ class GameplayScene(Scene):
         # Draw combo indicator
         if self.player.attack_combo > 0:
             combo_text = f"COMBO x{self.player.attack_combo}"
-            arcade.draw_text(
+            safe_draw_text(
                 combo_text,
                 SCREEN_WIDTH // 2,
                 SCREEN_HEIGHT - 100,
                 arcade.color.YELLOW,
                 24,
-                anchor_x="center",
-                font_name="Arial",
-                bold=True
+                anchor_x="center"
             )
         
     def on_key_press(self, key, modifiers):

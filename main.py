@@ -31,9 +31,15 @@ def test_arcade_installation():
         test_items = [
             ('arcade.Window', arcade.Window),
             ('arcade.Sprite', arcade.Sprite),
-            ('arcade.SpriteSolidColor', arcade.SpriteSolidColor),
             ('arcade.SpriteList', arcade.SpriteList),
         ]
+        
+        # Test SpriteSolidColor separately since it might not exist in some versions
+        try:
+            arcade.SpriteSolidColor
+            print("✓ arcade.SpriteSolidColor available")
+        except:
+            print("✗ arcade.SpriteSolidColor missing - will use fallbacks")
         
         for name, cls in test_items:
             try:
@@ -100,7 +106,7 @@ except Exception as e:
     sys.exit(1)
 
 class HeavenBurnsRed(arcade.Window):
-    """Main game class with enhanced error handling"""
+    """Main game class with enhanced error handling - Fixed for Arcade 3.0.0"""
     def __init__(self, width: int, height: int, title: str):
         try:
             super().__init__(width, height, title, resizable=False)
@@ -224,9 +230,9 @@ class HeavenBurnsRed(arcade.Window):
                 # Don't raise - continue with other scenes
         
     def on_draw(self):
-        """Render the game with error handling"""
+        """Render the game with error handling - Arcade 3.0.0 Compatible"""
         try:
-            # Clear screen
+            # Clear screen - this should always work
             self.clear()
             
             # Draw current scene
@@ -236,7 +242,7 @@ class HeavenBurnsRed(arcade.Window):
             if self.show_fps:
                 fps_value = round(1/self._last_delta_time) if self._last_delta_time > 0 else 0
                 try:
-                    # Try to draw FPS - if this fails, just skip it
+                    # Try to draw FPS using compatibility layer
                     from src.core.arcade_compat import safe_draw_text
                     safe_draw_text(
                         f"FPS: {fps_value}",
@@ -250,6 +256,13 @@ class HeavenBurnsRed(arcade.Window):
         except Exception as e:
             print(f"Error in on_draw: {e}")
             # Don't re-raise - this would crash the game loop
+            # Instead, try to draw a simple error message
+            try:
+                from src.core.arcade_compat import safe_draw_rectangle_filled, safe_draw_text
+                safe_draw_rectangle_filled(640, 360, 1280, 720, (20, 20, 20))
+                safe_draw_text("Rendering Error", 640, 360, arcade.color.RED, 48, anchor_x="center", anchor_y="center")
+            except:
+                pass  # If even that fails, just give up on drawing
         
     def on_update(self, delta_time: float):
         """Update game logic with error handling"""
@@ -271,6 +284,7 @@ class HeavenBurnsRed(arcade.Window):
             # Toggle FPS display
             if key == arcade.key.F1:
                 self.show_fps = not self.show_fps
+                print(f"FPS display: {'ON' if self.show_fps else 'OFF'}")
                 
             # Pass to input manager and current scene
             self.input_manager.on_key_press(key, modifiers)
@@ -330,6 +344,7 @@ def main():
     """Main function with comprehensive error handling"""
     print("=" * 60)
     print("HEAVEN BURNS RED - Platform Game")
+    print("Fixed for Arcade 3.0.0 Compatibility")
     print("=" * 60)
     
     # Check command line arguments
@@ -338,6 +353,11 @@ def main():
             print("Usage:")
             print("  python main.py          - Run the game")
             print("  python main.py --help   - Show this help")
+            print("Controls:")
+            print("  Arrow Keys / WASD       - Navigate menus")
+            print("  Enter / Space           - Select")
+            print("  Escape                  - Back/Pause")
+            print("  F1                      - Toggle FPS")
             return
         else:
             print(f"Unknown argument: {sys.argv[1]}")
@@ -350,6 +370,7 @@ def main():
         game = HeavenBurnsRed(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
         game.setup()
         print("✓ Game started successfully")
+        print("Press F1 to toggle FPS display")
         arcade.run()
     except KeyboardInterrupt:
         print("\n✓ Game interrupted by user")

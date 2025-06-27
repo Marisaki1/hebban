@@ -1,6 +1,6 @@
 # src/core/asset_manager.py
 """
-Asset Manager for Arcade 3.0.0 - Uses SpriteSolidColor fallbacks
+Asset Manager for Arcade 3.0.0 - Fixed texture creation
 """
 import os
 import arcade
@@ -31,7 +31,7 @@ class AssetManager:
     
     def generate_default_assets(self):
         """Generate default placeholder assets using the most compatible method"""
-        # Create default character sprite using SpriteSolidColor method
+        # Create default textures
         self._create_default_texture('default_character', (64, 64), (100, 150, 200))
         self._create_default_texture('default_enemy', (64, 64), (200, 100, 100))
         self._create_default_texture('default_ui_button', (200, 50), (80, 80, 80))
@@ -40,34 +40,37 @@ class AssetManager:
     def _create_default_texture(self, name: str, size: tuple, color: tuple):
         """Create a default colored texture using the most compatible method"""
         try:
-            # Method 1: Try Arcade 3.0's Texture.create methods
+            # Method 1: Try Arcade 3.0's Texture.create_filled
             texture = arcade.Texture.create_filled(name, size, color)
             self.textures[name] = texture
+            print(f"✓ Created texture {name} using create_filled")
             return
         except Exception as e:
             print(f"Method 1 failed for {name}: {e}")
         
         try:
-            # Method 2: Try make_soft_square_texture (older method)
-            size_val = max(size)
-            texture = arcade.make_soft_square_texture(size_val, color, outer_alpha=255)
+            # Method 2: Try using PIL to create image then convert to texture
+            from PIL import Image
+            image = Image.new('RGBA', size, color + (255,))
+            texture = arcade.Texture(name, image)
             self.textures[name] = texture
+            print(f"✓ Created texture {name} using PIL")
             return
         except Exception as e:
             print(f"Method 2 failed for {name}: {e}")
         
         try:
-            # Method 3: Use PIL to create image then convert to texture
-            from PIL import Image
-            image = Image.new('RGBA', size, color + (255,))
-            texture = arcade.Texture(name, image)
+            # Method 3: Try make_soft_square_texture if available
+            size_val = max(size)
+            texture = arcade.make_soft_square_texture(size_val, color, outer_alpha=255)
             self.textures[name] = texture
+            print(f"✓ Created texture {name} using make_soft_square_texture")
             return
         except Exception as e:
             print(f"Method 3 failed for {name}: {e}")
         
         try:
-            # Method 4: Create empty texture as absolute fallback
+            # Method 4: Create empty texture as fallback
             texture = arcade.Texture.create_empty(name, size)
             self.textures[name] = texture
             print(f"Created empty texture for {name}")
@@ -105,7 +108,7 @@ class AssetManager:
     def _create_emergency_texture(self, name: str) -> Optional[arcade.Texture]:
         """Create an emergency fallback texture"""
         try:
-            # Try to create a simple 32x32 magenta texture
+            # Try to create a simple 32x32 magenta texture using PIL
             from PIL import Image
             image = Image.new('RGBA', (32, 32), (255, 0, 255, 255))
             texture = arcade.Texture(f"emergency_{name}", image)
