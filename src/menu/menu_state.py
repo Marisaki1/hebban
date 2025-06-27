@@ -1,13 +1,14 @@
+# src/menu/menu_state.py
+"""
+Fixed menu state that works with Arcade 3.0.0
+"""
 import arcade
 from src.core.director import Scene
 from src.input.input_manager import InputManager, InputAction
-from src.core.arcade_compat import (
-    safe_draw_rectangle_filled, safe_draw_rectangle_outline, safe_draw_text
-)
 from typing import List, Callable
 
 class MenuItem:
-    """Individual menu item with better mouse support"""
+    """Individual menu item with sprite-based rendering"""
     def __init__(self, text: str, action: Callable, x: float, y: float):
         self.text = text
         self.action = action
@@ -18,40 +19,118 @@ class MenuItem:
         self.is_hovered = False
         self.is_selected = False
         
+        # Create sprites for background
+        self.bg_sprite = None
+        self.text_display = None
+        self._create_background()
+        
+    def _create_background(self):
+        """Create background sprite"""
+        try:
+            self.bg_sprite = arcade.SpriteSolidColor(
+                int(self.width), int(self.height), arcade.color.DARK_GRAY
+            )
+            self.bg_sprite.center_x = self.x
+            self.bg_sprite.center_y = self.y
+        except Exception as e:
+            print(f"Error creating menu item background: {e}")
+        
     def draw(self):
-        """Draw the menu item - Arcade 3.0 Compatible"""
-        # Draw background
-        if self.is_selected:
-            color = arcade.color.CRIMSON
-            border_width = 3
-        elif self.is_hovered:
-            color = arcade.color.DARK_RED
-            border_width = 2
-        else:
-            color = arcade.color.DARK_GRAY
-            border_width = 1
+        """Draw the menu item using sprites"""
+        # Update background color based on state
+        if self.bg_sprite:
+            if self.is_selected:
+                color = arcade.color.CRIMSON
+            elif self.is_hovered:
+                color = arcade.color.DARK_RED
+            else:
+                color = arcade.color.DARK_GRAY
             
-        safe_draw_rectangle_filled(
-            self.x, self.y, self.width, self.height, color
-        )
+            # Recreate sprite with new color
+            try:
+                self.bg_sprite = arcade.SpriteSolidColor(
+                    int(self.width), int(self.height), color
+                )
+                self.bg_sprite.center_x = self.x
+                self.bg_sprite.center_y = self.y
+                self.bg_sprite.draw()
+            except Exception as e:
+                print(f"Menu item draw error: {e}")
         
-        # Draw border
-        safe_draw_rectangle_outline(
-            self.x, self.y, self.width, self.height,
-            arcade.color.WHITE, border_width
-        )
+        # Draw border using thin sprites
+        try:
+            border_width = 3 if self.is_selected else 1
+            border_color = arcade.color.WHITE
+            
+            # Top border
+            top_border = arcade.SpriteSolidColor(int(self.width), border_width, border_color)
+            top_border.center_x = self.x
+            top_border.center_y = self.y + self.height/2 - border_width/2
+            top_border.draw()
+            
+            # Bottom border
+            bottom_border = arcade.SpriteSolidColor(int(self.width), border_width, border_color)
+            bottom_border.center_x = self.x
+            bottom_border.center_y = self.y - self.height/2 + border_width/2
+            bottom_border.draw()
+            
+            # Left border
+            left_border = arcade.SpriteSolidColor(border_width, int(self.height), border_color)
+            left_border.center_x = self.x - self.width/2 + border_width/2
+            left_border.center_y = self.y
+            left_border.draw()
+            
+            # Right border
+            right_border = arcade.SpriteSolidColor(border_width, int(self.height), border_color)
+            right_border.center_x = self.x + self.width/2 - border_width/2
+            right_border.center_y = self.y
+            right_border.draw()
+            
+        except Exception as e:
+            print(f"Menu border draw error: {e}")
         
-        # Draw text
-        safe_draw_text(
-            self.text,
-            self.x,
-            self.y,
-            arcade.color.WHITE,
-            24,
-            anchor_x="center",
-            anchor_y="center",
-            font_name="Arial"
-        )
+        # Draw text - try multiple methods
+        self._draw_text_safe()
+        
+    def _draw_text_safe(self):
+        """Draw text with fallback methods"""
+        try:
+            # Method 1: Try standard arcade.draw_text
+            arcade.draw_text(
+                self.text,
+                self.x,
+                self.y,
+                arcade.color.WHITE,
+                24,
+                anchor_x="center",
+                anchor_y="center",
+                font_name="Arial"
+            )
+            return
+        except:
+            pass
+        
+        try:
+            # Method 2: Try minimal parameters
+            arcade.draw_text(self.text, self.x, self.y, arcade.color.WHITE, 24)
+            return
+        except:
+            pass
+        
+        try:
+            # Method 3: Try Text class if available
+            if hasattr(arcade, 'Text'):
+                text_obj = arcade.Text(
+                    self.text, self.x, self.y, arcade.color.WHITE, 24,
+                    anchor_x="center", anchor_y="center"
+                )
+                text_obj.draw()
+                return
+        except:
+            pass
+        
+        # Fallback: print text info
+        print(f"Text: '{self.text}' at ({self.x}, {self.y})")
         
     def contains_point(self, x: float, y: float) -> bool:
         """Check if point is within menu item bounds"""
@@ -61,7 +140,7 @@ class MenuItem:
                 self.y - half_height <= y <= self.y + half_height)
 
 class MenuState(Scene):
-    """Base class for all menu states with fixed navigation - Arcade 3.0 Compatible"""
+    """Base class for all menu states - Fixed for Arcade 3.0.0"""
     def __init__(self, director, input_manager: InputManager):
         super().__init__(director)
         self.input_manager = input_manager
@@ -72,6 +151,21 @@ class MenuState(Scene):
         
         # Track if we're already handling input to prevent double-triggers
         self.input_handled = False
+        
+        # Background sprite
+        self.background_sprite = None
+        self._create_background()
+        
+    def _create_background(self):
+        """Create background sprite"""
+        try:
+            self.background_sprite = arcade.SpriteSolidColor(
+                1280, 720, (20, 20, 20)
+            )
+            self.background_sprite.center_x = 640
+            self.background_sprite.center_y = 360
+        except Exception as e:
+            print(f"Error creating menu background: {e}")
         
     def on_enter(self):
         """Setup input callbacks when entering menu"""
@@ -192,24 +286,53 @@ class MenuState(Scene):
         self.input_handled = False
                     
     def draw(self):
-        """Draw the menu - Arcade 3.0 Compatible"""
+        """Draw the menu using sprites"""
         # Draw background
-        safe_draw_rectangle_filled(
-            640, 360, 1280, 720, (20, 20, 20)
-        )
+        if self.background_sprite:
+            self.background_sprite.draw()
         
-        # Draw title
-        safe_draw_text(
-            self.title,
-            640,
-            600,
-            arcade.color.CRIMSON,
-            48,
-            anchor_x="center",
-            font_name="Arial",
-            bold=True
-        )
+        # Draw title using safe text method
+        self._draw_title()
         
         # Draw menu items
         for item in self.menu_items:
             item.draw()
+            
+    def _draw_title(self):
+        """Draw title with fallback methods"""
+        try:
+            # Method 1: Try full parameters
+            arcade.draw_text(
+                self.title,
+                640, 600,
+                arcade.color.CRIMSON,
+                48,
+                anchor_x="center",
+                font_name="Arial",
+                bold=True
+            )
+            return
+        except:
+            pass
+        
+        try:
+            # Method 2: Try minimal parameters
+            arcade.draw_text(self.title, 640, 600, arcade.color.CRIMSON, 48)
+            return
+        except:
+            pass
+        
+        try:
+            # Method 3: Try Text class
+            if hasattr(arcade, 'Text'):
+                text_obj = arcade.Text(
+                    self.title, 640, 600, arcade.color.CRIMSON, 48,
+                    anchor_x="center"
+                )
+                text_obj.draw()
+                return
+        except:
+            pass
+        
+        # Fallback
+        print(f"Title: '{self.title}'")

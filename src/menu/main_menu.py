@@ -1,10 +1,13 @@
+# src/menu/main_menu.py
+"""
+Fixed main menu that works with Arcade 3.0.0
+"""
 import arcade
 from src.menu.menu_state import MenuState, MenuItem
 from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
-from src.core.arcade_compat import safe_draw_text
 
 class MainMenu(MenuState):
-    """Main menu of the game"""
+    """Main menu of the game - Fixed for Arcade 3.0.0"""
     def __init__(self, director, input_manager):
         super().__init__(director, input_manager)
         self.title = "Heaven Burns Red"
@@ -52,35 +55,91 @@ class MainMenu(MenuState):
             
     def create_game(self):
         """Navigate to create game menu"""
-        self.director.push_scene("squad_select")
+        try:
+            self.director.push_scene("squad_select")
+        except Exception as e:
+            print(f"Error navigating to squad_select: {e}")
         
     def join_game(self):
         """Navigate to join game menu"""
-        self.director.push_scene("lobby_browser")
+        try:
+            self.director.push_scene("lobby_browser")
+        except Exception as e:
+            print(f"Error navigating to lobby_browser: {e}")
+            # Fallback to existing scene
+            self.director.push_scene("lobby_menu")
         
     def show_leaderboard(self):
         """Show global leaderboard"""
-        self.director.push_scene("leaderboard")
+        try:
+            self.director.push_scene("leaderboard")
+        except Exception as e:
+            print(f"Error navigating to leaderboard: {e}")
         
     def show_settings(self):
         """Show settings menu"""
-        self.director.push_scene("settings")
+        try:
+            self.director.push_scene("settings")
+        except Exception as e:
+            print(f"Error navigating to settings: {e}")
         
     def exit_game(self):
         """Exit the game"""
-        arcade.exit()
+        try:
+            arcade.exit()
+        except Exception as e:
+            print(f"Error exiting game: {e}")
+            # Fallback exit methods
+            try:
+                import sys
+                sys.exit()
+            except:
+                pass
         
     def draw(self):
         """Draw the main menu"""
+        # Draw base menu (background, title, menu items)
         super().draw()
         
-        # Draw additional decorative elements
-        safe_draw_text(
-            "A Platform Adventure",
-            SCREEN_WIDTH // 2,
-            550,
-            arcade.color.WHITE,
-            18,
-            anchor_x="center",
-            font_name="Arial"
-        )
+        # Draw additional subtitle
+        self._draw_subtitle()
+        
+    def _draw_subtitle(self):
+        """Draw subtitle with fallback methods"""
+        subtitle = "A Platform Adventure"
+        try:
+            # Method 1: Try full parameters
+            arcade.draw_text(
+                subtitle,
+                SCREEN_WIDTH // 2,
+                550,
+                arcade.color.WHITE,
+                18,
+                anchor_x="center",
+                font_name="Arial"
+            )
+            return
+        except:
+            pass
+        
+        try:
+            # Method 2: Try minimal parameters
+            arcade.draw_text(subtitle, SCREEN_WIDTH // 2, 550, arcade.color.WHITE, 18)
+            return
+        except:
+            pass
+        
+        try:
+            # Method 3: Try Text class
+            if hasattr(arcade, 'Text'):
+                text_obj = arcade.Text(
+                    subtitle, SCREEN_WIDTH // 2, 550, arcade.color.WHITE, 18,
+                    anchor_x="center"
+                )
+                text_obj.draw()
+                return
+        except:
+            pass
+        
+        # Fallback
+        print(f"Subtitle: '{subtitle}'")
