@@ -1,10 +1,9 @@
 # ============================================================================
-# FILE: src/core/asset_manager.py - Updated for Arcade 3.0
+# FILE: src/core/asset_manager.py - Fixed for Arcade 3.0
 # ============================================================================
 import os
 import arcade
 from typing import Dict, Optional
-from PIL import Image, ImageDraw
 
 from src.core.asset_loader import AssetLoader
 
@@ -41,28 +40,31 @@ class AssetManager:
         
     def _create_default_sprite(self, name: str, size: tuple, color: tuple):
         """Create a default colored rectangle sprite - Arcade 3.0 Compatible"""
-        image = Image.new('RGBA', size, color + (255,))
-        draw = ImageDraw.Draw(image)
-        # Add border
-        draw.rectangle([0, 0, size[0]-1, size[1]-1], outline=(255, 255, 255, 255), width=2)
-        
-        # Create texture from PIL image - Arcade 3.0 Method
         try:
-            # Try new Arcade 3.0 method first
-            texture = arcade.Texture.create_filled(name, size, color + (255,))
-        except (AttributeError, TypeError):
-            # Fallback to PIL image conversion for Arcade 3.0
+            # Use Arcade 3.0's make_soft_square_texture
+            texture = arcade.make_soft_square_texture(
+                max(size), 
+                color,
+                outer_alpha=255
+            )
+            self.textures[name] = texture
+        except Exception as e:
+            print(f"Error creating default texture {name}: {e}")
+            # Create a very basic fallback
             try:
-                texture = arcade.Texture(name, image)
-            except TypeError:
-                # Alternative Arcade 3.0 syntax
-                texture = arcade.Texture.create_from_pil_image(image, name)
-        
-        self.textures[name] = texture
+                # Try alternative method with PIL
+                from PIL import Image
+                image = Image.new('RGBA', size, color + (255,))
+                texture = arcade.Texture(image)
+                self.textures[name] = texture
+            except Exception as e2:
+                print(f"Fallback texture creation failed for {name}: {e2}")
+                # Store None, we'll handle this in get_texture
+                self.textures[name] = None
         
     def get_texture(self, path: str, fallback: str = 'default_character') -> arcade.Texture:
         """Get texture with fallback support"""
-        if path in self.textures:
+        if path in self.textures and self.textures[path] is not None:
             return self.textures[path]
             
         # Try to load the texture
@@ -73,26 +75,33 @@ class AssetManager:
                     texture = arcade.load_texture(full_path)
                     self.textures[path] = texture
                     return texture
-                except:
-                    pass
+                except Exception as e:
+                    print(f"Error loading texture {full_path}: {e}")
                     
         # Return fallback
-        return self.textures.get(fallback, self._create_error_texture())
+        fallback_texture = self.textures.get(fallback)
+        if fallback_texture is not None:
+            return fallback_texture
+        else:
+            return self._create_error_texture()
         
     def _create_error_texture(self) -> arcade.Texture:
         """Create an error texture - Arcade 3.0 Compatible"""
         try:
-            # Try Arcade 3.0 method
-            return arcade.Texture.create_filled('error', (64, 64), (255, 0, 255, 255))
-        except (AttributeError, TypeError):
-            # Fallback method
-            image = Image.new('RGBA', (64, 64), (255, 0, 255, 255))
+            # Create a magenta error texture using Arcade 3.0 method
+            return arcade.make_soft_square_texture(64, (255, 0, 255), outer_alpha=255)
+        except Exception as e:
+            print(f"Error creating error texture: {e}")
+            # Final fallback - try to load any existing texture
             try:
-                return arcade.Texture('error', image)
-            except TypeError:
-                return arcade.Texture.create_from_pil_image(image, 'error')
+                # Create minimal texture using PIL
+                from PIL import Image
+                image = Image.new('RGBA', (64, 64), (255, 0, 255, 255))
+                return arcade.Texture(image)
+            except Exception:
+                # If all else fails, return None and let the calling code handle it
+                return None
     
-
     def load_game_assets(self):
         """Load all game assets"""
         # Load character sprites
@@ -117,24 +126,27 @@ class AssetManager:
                     self.textures[name] = arcade.load_texture(path)
                 except Exception as e:
                     print(f"Error loading UI asset {path}: {e}")
-                    # Create fallback
-                    self.textures[name] = self._create_error_texture()
+                    # Create fallback using Arcade 3.0 method
+                    self.textures[name] = arcade.make_soft_square_texture(32, (128, 128, 128), outer_alpha=255)
                     
     def create_colored_texture(self, name: str, size: tuple, color: tuple) -> arcade.Texture:
         """Create a solid colored texture - Arcade 3.0 Helper"""
         try:
-            # Arcade 3.0 method
-            texture = arcade.Texture.create_filled(name, size, color)
-        except (AttributeError, TypeError):
+            # Use Arcade 3.0's make_soft_square_texture
+            texture = arcade.make_soft_square_texture(max(size), color, outer_alpha=255)
+            self.textures[name] = texture
+            return texture
+        except Exception as e:
+            print(f"Error creating colored texture {name}: {e}")
             # Fallback to PIL
-            image = Image.new('RGBA', size, color)
             try:
-                texture = arcade.Texture(name, image)
-            except TypeError:
-                texture = arcade.Texture.create_from_pil_image(image, name)
-        
-        self.textures[name] = texture
-        return texture
+                from PIL import Image
+                image = Image.new('RGBA', size, color + (255,))
+                texture = arcade.Texture(image)
+                self.textures[name] = texture
+                return texture
+            except Exception:
+                return None
         
     def preload_textures(self, texture_list: list):
         """Preload a list of textures"""
@@ -143,7 +155,7 @@ class AssetManager:
             
     def get_texture_count(self) -> int:
         """Get number of loaded textures"""
-        return len(self.textures)
+        return len([t for t in self.textures.values() if t is not None])
         
     def clear_cache(self):
         """Clear texture cache"""

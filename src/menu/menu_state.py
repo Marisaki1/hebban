@@ -189,10 +189,7 @@ class MenuState(Scene):
         self.input_handled = False
                     
     def draw(self):
-        """Draw the menu - Arcade 3.0 Compatible"""
-        # Clear screen first
-        arcade.start_render()
-        
+        """Draw the menu - Arcade 3.0 Compatible (NO arcade.start_render())"""
         # Draw background
         arcade.draw_rectangle_filled(
             640, 360, 1280, 720, (20, 20, 20)

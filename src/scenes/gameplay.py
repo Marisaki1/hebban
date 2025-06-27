@@ -142,7 +142,7 @@ class GameplayScene(Scene):
             
     def load_level(self, level_num: int):
         """Load level data"""
-        # Create test platforms
+        # Create test platforms using Arcade 3.0 method
         platform_color = arcade.color.DARK_GRAY
         
         # Ground platforms
@@ -199,11 +199,15 @@ class GameplayScene(Scene):
             }
             
             # Arcade 3.0 texture creation
-            enemy.texture = arcade.make_soft_square_texture(
-                int(64 * enemy.scale),
-                enemy_colors.get(size, arcade.color.DARK_RED),
-                outer_alpha=255
-            )
+            try:
+                enemy.texture = arcade.make_soft_square_texture(
+                    int(64 * enemy.scale),
+                    enemy_colors.get(size, arcade.color.DARK_RED),
+                    outer_alpha=255
+                )
+            except Exception:
+                # Fallback for very old arcade versions
+                enemy.texture = arcade.Texture.create_empty("enemy", (int(64 * enemy.scale), int(64 * enemy.scale)))
             
             self.enemy_list.append(enemy)
             
@@ -299,10 +303,7 @@ class GameplayScene(Scene):
         self.camera.move_to((camera_x, camera_y))
         
     def draw(self):
-        """Draw gameplay - Arcade 3.0 Style"""
-        # Clear screen
-        arcade.start_render()
-        
+        """Draw gameplay - Arcade 3.0 Style (NO arcade.start_render())"""
         # Use game camera
         self.camera.use()
         

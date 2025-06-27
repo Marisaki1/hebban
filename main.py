@@ -151,7 +151,7 @@ class HeavenBurnsRed(arcade.Window):
         
     def on_draw(self):
         """Render the game - Arcade 3.0 Style"""
-        # Clear screen - Arcade 3.0
+        # Clear screen - Arcade 3.0 automatically handles this
         self.clear()
         
         # Draw current scene
@@ -222,7 +222,10 @@ def main():
     """Main function with server option"""
     print("=" * 60)
     print("HEAVEN BURNS RED - Platform Game")
-    print(f"Running on Arcade {arcade.version}")
+    try:
+        print(f"Running on Arcade {arcade.version.VERSION}")
+    except:
+        print(f"Running on Arcade (version info unavailable)")
     print("=" * 60)
     
     if len(sys.argv) > 1:

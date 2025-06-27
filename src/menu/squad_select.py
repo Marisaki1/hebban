@@ -335,9 +335,7 @@ class SquadSelectMenu(MenuState):
                     break
             
     def draw(self):
-        """Draw squad selection screen"""
-        arcade.start_render()
-        
+        """Draw squad selection screen - Arcade 3.0 Compatible (NO arcade.start_render())"""
         # Draw background
         arcade.draw_rectangle_filled(
             SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2,
