@@ -1,24 +1,22 @@
-# src/ui/hud.py
+# src/ui/hud.py - Fixed version
 """
 Enhanced HUD with character portraits and ability cooldowns
 """
 
 from typing import List
 import arcade
-from src.core.constants import SCREEN_HEIGHT, SCREEN_WIDTH
-from src.entities.player import Player
-from src.core.sprite_manager import sprite_manager
 import math
+from src.core.constants import SCREEN_HEIGHT, SCREEN_WIDTH
 
 class HUD:
     """Enhanced in-game heads-up display"""
-    def __init__(self, player: Player):
+    def __init__(self, player):
         self.player = player
         self.score = 0
         self.show_fps = False
         
-        # Load character portrait
-        self.portrait = sprite_manager.get_portrait(player.character_id)
+        # Load character portrait (with fallback)
+        self.portrait = self._get_character_portrait()
         
         # Animation timers
         self.health_flash_timer = 0
@@ -28,6 +26,17 @@ class HUD:
         
         # Combo display
         self.combo_display_timer = 0
+        
+    def _get_character_portrait(self):
+        """Get character portrait with fallback"""
+        try:
+            from src.core.sprite_manager import sprite_manager
+            return sprite_manager.get_portrait(self.player.character_id)
+        except:
+            # Fallback - create a simple colored square
+            from src.core.asset_manager import AssetManager
+            asset_manager = AssetManager()
+            return asset_manager.get_texture('default_character')
         
     def draw(self):
         """Draw HUD elements"""
@@ -51,9 +60,11 @@ class HUD:
         
         # Draw character portrait
         if self.portrait:
-            self.portrait.draw_scaled(
+            # Simple texture draw
+            arcade.draw_texture_rectangle(
                 portrait_x, portrait_y,
-                scale=frame_size / self.portrait.width
+                frame_size, frame_size,
+                self.portrait
             )
         else:
             # Placeholder
@@ -61,6 +72,18 @@ class HUD:
                 portrait_x, portrait_y,
                 frame_size, frame_size,
                 arcade.color.DARK_BLUE_GRAY
+            )
+            # Draw character name initial
+            char_name = self.player.character_data.get('name', 'P')
+            arcade.draw_text(
+                char_name[0],
+                portrait_x, portrait_y,
+                arcade.color.WHITE,
+                32,
+                anchor_x="center",
+                anchor_y="center",
+                font_name="Arial",
+                bold=True
             )
             
         # Health bar with gradient
@@ -153,8 +176,14 @@ class HUD:
         if self.score_popup_timer > 0:
             popup_y = score_y - 40 - (1 - self.score_popup_timer) * 20
             popup_alpha = int(255 * self.score_popup_timer)
+            
+            # Handle both numeric and string popup values
+            popup_text = str(self.score_popup_value)
+            if isinstance(self.score_popup_value, int) and self.score_popup_value > 0:
+                popup_text = f"+{self.score_popup_value}"
+                
             arcade.draw_text(
-                f"+{self.score_popup_value}",
+                popup_text,
                 score_x, popup_y,
                 (*arcade.color.YELLOW[:3], popup_alpha),
                 16,
@@ -194,11 +223,8 @@ class HUD:
             
             # Ability box background
             bg_color = arcade.color.DARK_BLUE_GRAY
-            if hasattr(self.player, 'ability_instances'):
-                ability = self.player.ability_instances.get(ability_name.lower().replace(' ', '_'))
-                if ability and ability.current_cooldown > 0:
-                    bg_color = arcade.color.DARK_GRAY
-                    
+            # Note: ability cooldown system would need to be implemented in player class
+            
             arcade.draw_rectangle_filled(x, y, icon_size, icon_size, bg_color)
             arcade.draw_rectangle_outline(x, y, icon_size, icon_size, arcade.color.WHITE, 2)
             
@@ -224,32 +250,6 @@ class HUD:
                 anchor_y="center"
             )
             
-            # Cooldown overlay
-            if hasattr(self.player, 'ability_instances'):
-                ability = self.player.ability_instances.get(ability_name.lower().replace(' ', '_'))
-                if ability and ability.current_cooldown > 0:
-                    # Draw cooldown sweep
-                    cooldown_percentage = ability.current_cooldown / ability.data.cooldown
-                    sweep_angle = 360 * cooldown_percentage
-                    
-                    # Semi-transparent overlay
-                    arcade.draw_rectangle_filled(
-                        x, y, icon_size, icon_size,
-                        (0, 0, 0, 180)
-                    )
-                    
-                    # Cooldown text
-                    arcade.draw_text(
-                        f"{ability.current_cooldown:.1f}",
-                        x, y,
-                        arcade.color.WHITE,
-                        16,
-                        anchor_x="center",
-                        anchor_y="center",
-                        font_name="Arial",
-                        bold=True
-                    )
-                    
     def draw_combo_meter(self):
         """Draw combo meter with style"""
         combo_x = SCREEN_WIDTH // 2
@@ -265,17 +265,17 @@ class HUD:
         )
         
         # Combo fill based on timer
-        if hasattr(self.player, 'combo_timer'):
-            fill_percentage = self.player.combo_timer
+        if hasattr(self.player, 'combo_timer') and self.player.combo_timer > 0:
+            fill_percentage = self.player.combo_timer / self.player.max_combo_time
             fill_width = bg_width * fill_percentage
             
             # Gradient color based on combo level
-            combo_colors = [
-                arcade.color.YELLOW,
-                arcade.color.ORANGE,
-                arcade.color.RED
-            ]
-            color = combo_colors[min(self.player.attack_combo - 1, 2)]
+            if self.player.attack_combo >= 5:
+                color = arcade.color.RED
+            elif self.player.attack_combo >= 3:
+                color = arcade.color.ORANGE
+            else:
+                color = arcade.color.YELLOW
             
             arcade.draw_rectangle_filled(
                 combo_x - bg_width/2 + fill_width/2, combo_y,
@@ -285,7 +285,7 @@ class HUD:
             
         # Combo text
         combo_text = f"COMBO x{self.player.attack_combo}"
-        text_size = 20 + self.player.attack_combo * 2  # Grow with combo
+        text_size = min(24, 20 + self.player.attack_combo * 2)  # Grow with combo
         
         arcade.draw_text(
             combo_text,
@@ -299,8 +299,8 @@ class HUD:
         )
         
         # Combo multiplier stars
-        for i in range(self.player.attack_combo):
-            star_x = combo_x - 30 + i * 30
+        for i in range(min(self.player.attack_combo, 5)):  # Max 5 stars
+            star_x = combo_x - 60 + i * 30
             star_y = combo_y + 30
             arcade.draw_text(
                 "★",

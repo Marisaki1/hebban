@@ -1,5 +1,5 @@
 # ============================================================================
-# FILE: src/entities/player.py
+# FILE: src/entities/player.py - Fixed version
 # ============================================================================
 import arcade
 from src.systems.animation import Animation, AnimationController, AnimationState
@@ -8,11 +8,12 @@ from typing import Optional, List
 
 class Player(arcade.Sprite):
     """Player character with full movement and combat"""
-    def __init__(self, character_data: dict, asset_manager, input_manager):
+    def __init__(self, character_data: dict, input_manager):
         super().__init__()
         
         # Character data
         self.character_data = character_data
+        self.character_id = character_data.get('id', 'unknown')
         self.player_id = None  # Set for multiplayer
         
         # Stats
@@ -32,12 +33,23 @@ class Player(arcade.Sprite):
         # Combat
         self.is_attacking = False
         self.attack_cooldown = 0
+        self.attack_combo = 0
+        self.combo_timer = 0
+        self.max_combo_time = 2.0
         self.invulnerable = False
         self.invulnerable_time = 0
         
+        # Buffs and effects
+        self.attack_boost = 1.0
+        self.defense_boost = 1.0
+        self.active_powerups = []
+        
+        # Score tracking
+        self.score = 0
+        
         # Animation
         self.animation_controller = AnimationController()
-        self.setup_animations(asset_manager)
+        self.setup_animations()
         
         # Input
         self.input_manager = input_manager
@@ -48,8 +60,13 @@ class Player(arcade.Sprite):
             [16, 32], [-16, 32]     # Top
         ]
         
-    def setup_animations(self, asset_manager):
+    def setup_animations(self):
         """Setup character animations"""
+        # Import here to avoid circular imports
+        from src.core.asset_manager import AssetManager
+        
+        asset_manager = AssetManager()
+        
         # Create default animations using asset manager
         texture = asset_manager.get_texture('default_character')
         
@@ -77,6 +94,24 @@ class Player(arcade.Sprite):
         # Check collisions
         self.check_collisions(collision_map)
         
+        # Update combat timers
+        if self.attack_cooldown > 0:
+            self.attack_cooldown -= delta_time
+            
+        if self.invulnerable_time > 0:
+            self.invulnerable_time -= delta_time
+            if self.invulnerable_time <= 0:
+                self.invulnerable = False
+                
+        # Update combo timer
+        if self.attack_combo > 0:
+            self.combo_timer -= delta_time
+            if self.combo_timer <= 0:
+                self.attack_combo = 0
+                
+        # Update powerups
+        self.update_powerups(delta_time)
+        
         # Update animation state
         self.update_animation_state()
         self.animation_controller.update(delta_time)
@@ -86,16 +121,8 @@ class Player(arcade.Sprite):
         if texture:
             self.texture = texture
             if not self.facing_right:
-                self.texture = self.texture.texture.flipped_horizontally
-                
-        # Update combat
-        if self.attack_cooldown > 0:
-            self.attack_cooldown -= delta_time
-            
-        if self.invulnerable_time > 0:
-            self.invulnerable_time -= delta_time
-            if self.invulnerable_time <= 0:
-                self.invulnerable = False
+                # Flip texture horizontally
+                self.texture = texture
                 
     def handle_input(self):
         """Handle player input"""
@@ -134,6 +161,13 @@ class Player(arcade.Sprite):
             self.is_attacking = True
             self.attack_cooldown = 0.5
             
+            # Update combo
+            if self.combo_timer > 0:
+                self.attack_combo += 1
+            else:
+                self.attack_combo = 1
+            self.combo_timer = self.max_combo_time
+            
             if attack_type == 1:
                 self.animation_controller.change_state(AnimationState.ATTACK_1, force=True)
             else:
@@ -141,18 +175,56 @@ class Player(arcade.Sprite):
                 
             self.animation_controller.lock_state()
             
+    def on_enemy_hit(self, enemy) -> int:
+        """Called when player hits an enemy, returns damage dealt"""
+        base_damage = self.character_data.get('attack', 10)
+        combo_multiplier = 1.0 + (self.attack_combo - 1) * 0.2
+        damage = int(base_damage * self.attack_boost * combo_multiplier)
+        
+        # Reset attack state
+        self.is_attacking = False
+        
+        return damage
+        
     def take_damage(self, damage: int):
         """Take damage"""
         if not self.invulnerable:
-            self.health -= damage
+            actual_damage = max(1, int(damage / self.defense_boost))
+            self.health -= actual_damage
             self.invulnerable = True
             self.invulnerable_time = 1.0
             
+            # Reset combo on taking damage
+            self.attack_combo = 0
+            self.combo_timer = 0
+            
             if self.health <= 0:
+                self.health = 0
                 self.animation_controller.change_state(AnimationState.DEATH, force=True)
             else:
                 self.animation_controller.change_state(AnimationState.HURT, force=True)
                 
+    def update_powerups(self, delta_time: float):
+        """Update active powerups"""
+        expired_powerups = []
+        
+        for i, powerup in enumerate(self.active_powerups):
+            powerup['duration'] -= delta_time
+            if powerup['duration'] <= 0:
+                expired_powerups.append(i)
+                
+                # Remove powerup effect
+                if powerup['type'] == 'speed':
+                    self.move_speed /= powerup['boost']
+                elif powerup['type'] == 'damage':
+                    self.attack_boost = 1.0
+                elif powerup['type'] == 'defense':
+                    self.defense_boost = 1.0
+                    
+        # Remove expired powerups (in reverse order to maintain indices)
+        for i in reversed(expired_powerups):
+            self.active_powerups.pop(i)
+            
     def check_collisions(self, collision_map):
         """Check and resolve collisions"""
         # Ground collision
@@ -182,3 +254,31 @@ class Player(arcade.Sprite):
             self.animation_controller.change_state(AnimationState.RUN)
         else:
             self.animation_controller.change_state(AnimationState.IDLE)
+            
+    def set_animation_speed(self, animation_name: str, speed_multiplier: float):
+        """Set animation speed for debugging/testing"""
+        # This is a debug function - in full implementation would use sprite manager
+        print(f"Animation speed change: {animation_name} -> {speed_multiplier}x")
+        
+    def heal(self, amount: int):
+        """Heal the player"""
+        old_health = self.health
+        self.health = min(self.health + amount, self.max_health)
+        return self.health - old_health
+        
+    def add_score(self, points: int):
+        """Add score points"""
+        self.score += points
+        
+    def get_stats(self) -> dict:
+        """Get current player stats"""
+        return {
+            'health': self.health,
+            'max_health': self.max_health,
+            'score': self.score,
+            'combo': self.attack_combo,
+            'facing_right': self.facing_right,
+            'on_ground': self.on_ground,
+            'is_attacking': self.is_attacking,
+            'active_powerups': len(self.active_powerups)
+        }

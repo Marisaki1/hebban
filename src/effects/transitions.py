@@ -3,6 +3,7 @@
 Screen transition effects for smooth scene changes
 """
 
+import math
 import arcade
 from typing import Callable, Optional
 from enum import Enum

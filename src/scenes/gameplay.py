@@ -1,19 +1,16 @@
-# src/scenes/gameplay.py
+# src/scenes/gameplay.py - Fixed version
 """
 Enhanced gameplay scene with sound and particle effects
 """
 
 import arcade
+import random
 from src.core.director import Scene
 from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 from src.entities.player import Player
 from src.entities.enemies.cancer_base import CancerEnemy
 from src.ui.hud import HUD
 from src.data.squad_data import get_character_data
-from src.core.sprite_manager import sprite_manager
-from src.core.sound_manager import sound_manager
-from src.effects.particle_system import particle_manager
-import random
 
 class GameplayScene(Scene):
     """Main gameplay scene with all enhancements"""
@@ -51,6 +48,19 @@ class GameplayScene(Scene):
         self.is_multiplayer = director.get_system('is_multiplayer')
         self.other_players = {}
         
+        # Managers (with fallbacks)
+        try:
+            from src.core.sound_manager import sound_manager
+            self.sound_manager = sound_manager
+        except:
+            self.sound_manager = None
+            
+        try:
+            from src.effects.particle_system import particle_manager
+            self.particle_manager = particle_manager
+        except:
+            self.particle_manager = None
+        
     def on_enter(self):
         """Setup gameplay scene"""
         # Create cameras
@@ -58,7 +68,8 @@ class GameplayScene(Scene):
         self.gui_camera = arcade.camera.Camera2D()
         
         # Clear any existing particle effects
-        particle_manager.clear()
+        if self.particle_manager:
+            self.particle_manager.clear()
         
         # Create player with selected character
         character_data = self._get_selected_character()
@@ -77,27 +88,30 @@ class GameplayScene(Scene):
         self.spawn_enemies()
         
         # Play battle music
-        sound_manager.play_music("battle_theme")
+        if self.sound_manager:
+            self.sound_manager.play_music("battle_theme")
         
         print(f"Gameplay started with character: {character_data['name']}")
         
     def on_exit(self):
         """Cleanup when leaving gameplay"""
         # Stop music
-        sound_manager.stop_music()
+        if self.sound_manager:
+            self.sound_manager.stop_music()
         
         # Clear particles
-        particle_manager.clear()
+        if self.particle_manager:
+            self.particle_manager.clear()
         
     def on_pause(self):
         """Pause gameplay"""
-        # You could pause music here
-        pass
+        if self.sound_manager:
+            self.sound_manager.pause_music()
         
     def on_resume(self):
         """Resume gameplay"""
-        # Resume music
-        pass
+        if self.sound_manager:
+            self.sound_manager.resume_music()
         
     def _get_selected_character(self) -> dict:
         """Get selected character data from save or default"""
@@ -217,12 +231,21 @@ class GameplayScene(Scene):
                 combo_bonus = self.player.attack_combo * 5
                 self.score += base_score + combo_bonus
                 self.hud.score = self.score
+                
+                # Create hit effect
+                if self.particle_manager:
+                    self.particle_manager.create_effect('impact', enemy.center_x, enemy.center_y)
             else:
                 # Enemy damages player
                 self.player.take_damage(enemy.damage)
                 
         # Update particle effects
-        particle_manager.update(delta_time)
+        if self.particle_manager:
+            self.particle_manager.update(delta_time)
+        
+        # Update HUD
+        if self.hud:
+            self.hud.update(delta_time)
         
         # Update camera to follow player
         self.center_camera_on_player()
@@ -230,24 +253,27 @@ class GameplayScene(Scene):
         # Check win/lose conditions
         if self.player.health <= 0:
             self.game_over = True
-            sound_manager.stop_music()
-            sound_manager.play_sfx("game_over")
+            if self.sound_manager:
+                self.sound_manager.stop_music()
+                self.sound_manager.play_sfx("game_over")
             print("Game Over!")
             # Return to main menu after delay
-            self.director.change_scene('main_menu')
+            arcade.schedule(lambda dt: self.director.change_scene('main_menu'), 3.0)
             
         # Check if all enemies defeated
         if len(self.enemy_list) == 0 and not self.victory:
             self.victory = True
-            sound_manager.play_sfx("victory")
+            if self.sound_manager:
+                self.sound_manager.play_sfx("victory")
             print(f"Level {self.current_level} Complete!")
             self.current_level += 1
             
             # Create victory effects
-            for _ in range(5):
-                x = self.player.center_x + random.randint(-100, 100)
-                y = self.player.center_y + random.randint(-50, 100)
-                particle_manager.create_effect('sparkle', x, y)
+            if self.particle_manager:
+                for _ in range(5):
+                    x = self.player.center_x + random.randint(-100, 100)
+                    y = self.player.center_y + random.randint(-50, 100)
+                    self.particle_manager.create_effect('sparkle', x, y)
                 
             # Spawn more enemies after a delay (for now)
             arcade.schedule(self.spawn_next_wave, 3.0)
@@ -285,11 +311,13 @@ class GameplayScene(Scene):
         self.item_list.draw()
         
         # Draw particle effects
-        particle_manager.draw()
+        if self.particle_manager:
+            self.particle_manager.draw()
         
         # Use GUI camera for HUD
         self.gui_camera.use()
-        self.hud.draw()
+        if self.hud:
+            self.hud.draw()
         
         # Draw debug info
         arcade.draw_text(
@@ -318,33 +346,16 @@ class GameplayScene(Scene):
         if key == arcade.key.ESCAPE:
             self.director.push_scene('pause')
             
-        # Debug: Change animation speeds with number keys
-        if key == arcade.key.KEY_1:
-            self.player.set_animation_speed('walk', 0.5)
-            print("Walk animation speed: 50%")
-        elif key == arcade.key.KEY_2:
-            self.player.set_animation_speed('walk', 1.0)
-            print("Walk animation speed: 100%")
-        elif key == arcade.key.KEY_3:
-            self.player.set_animation_speed('walk', 2.0)
-            print("Walk animation speed: 200%")
-        elif key == arcade.key.KEY_4:
-            self.player.set_animation_speed('attack1', 0.5)
-            print("Attack animation speed: 50%")
-        elif key == arcade.key.KEY_5:
-            self.player.set_animation_speed('attack1', 2.0)
-            print("Attack animation speed: 200%")
-            
         # Debug: Test particle effects with number keys 6-9
-        elif key == arcade.key.KEY_6:
-            particle_manager.create_effect('impact', self.player.center_x, self.player.center_y)
+        elif key == arcade.key.KEY_6 and self.particle_manager:
+            self.particle_manager.create_effect('impact', self.player.center_x, self.player.center_y)
             print("Impact effect")
-        elif key == arcade.key.KEY_7:
-            particle_manager.create_effect('flame', self.player.center_x, self.player.center_y)
+        elif key == arcade.key.KEY_7 and self.particle_manager:
+            self.particle_manager.create_effect('flame', self.player.center_x, self.player.center_y)
             print("Flame effect")
-        elif key == arcade.key.KEY_8:
-            particle_manager.create_effect('healing', self.player.center_x, self.player.center_y)
+        elif key == arcade.key.KEY_8 and self.particle_manager:
+            self.particle_manager.create_effect('healing', self.player.center_x, self.player.center_y)
             print("Healing effect")
-        elif key == arcade.key.KEY_9:
-            particle_manager.create_effect('sparkle', self.player.center_x, self.player.center_y)
+        elif key == arcade.key.KEY_9 and self.particle_manager:
+            self.particle_manager.create_effect('sparkle', self.player.center_x, self.player.center_y)
             print("Sparkle effect")

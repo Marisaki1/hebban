@@ -3,9 +3,10 @@
 Item and powerup system for collectibles
 """
 
+import math
 import arcade
 import random
-from typing import Optional, Callable
+from typing import List, Optional, Callable
 from enum import Enum
 from src.core.sound_manager import sound_manager
 from src.effects.particle_system import particle_manager
