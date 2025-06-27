@@ -1,6 +1,6 @@
 """
 Heaven Burns Red - Main Game Entry Point
-Fixed version with proper input handling
+Updated for Arcade 3.0 compatibility
 """
 
 import os
@@ -47,7 +47,7 @@ from src.networking.protocol import NetworkProtocol, MessageType
 import src.utils.helpers as helpers
 
 class HeavenBurnsRed(arcade.Window):
-    """Main game class with fixed input handling"""
+    """Main game class with Arcade 3.0 compatibility"""
     def __init__(self, width: int, height: int, title: str):
         super().__init__(width, height, title, resizable=False)
         arcade.set_background_color(arcade.color.BLACK)
@@ -73,11 +73,14 @@ class HeavenBurnsRed(arcade.Window):
             'is_multiplayer': self.is_multiplayer
         }
         
-        # Frame rate
+        # Frame rate - Arcade 3.0 compatible
         self.set_update_rate(1/FPS)
         
         # Debug info
         self.show_fps = False
+        
+        # Store delta time for FPS calculation
+        self.delta_time = 1/60
         
     def setup(self):
         """Set up the game with all scenes"""
@@ -147,14 +150,17 @@ class HeavenBurnsRed(arcade.Window):
         )
         
     def on_draw(self):
-        """Render the game"""
+        """Render the game - Arcade 3.0 Style"""
+        # Clear screen - Arcade 3.0
         self.clear()
+        
+        # Draw current scene
         self.director.draw()
         
         # Show FPS if enabled
         if self.show_fps:
             arcade.draw_text(
-                f"FPS: {round(1/self.delta_time)}",
+                f"FPS: {round(1/self.delta_time) if self.delta_time > 0 else 0}",
                 10, SCREEN_HEIGHT - 30,
                 arcade.color.WHITE,
                 14
@@ -162,6 +168,7 @@ class HeavenBurnsRed(arcade.Window):
         
     def on_update(self, delta_time: float):
         """Update game logic"""
+        self.delta_time = delta_time
         self.director.update(delta_time)
         self.input_manager.update_controller()
         

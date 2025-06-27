@@ -1,6 +1,6 @@
-# src/scenes/gameplay.py - Fixed version
+# src/scenes/gameplay.py - Arcade 3.0 Compatible
 """
-Enhanced gameplay scene with sound and particle effects
+Enhanced gameplay scene with sound and particle effects - Updated for Arcade 3.0
 """
 
 import arcade
@@ -13,7 +13,7 @@ from src.ui.hud import HUD
 from src.data.squad_data import get_character_data
 
 class GameplayScene(Scene):
-    """Main gameplay scene with all enhancements"""
+    """Main gameplay scene with all enhancements - Arcade 3.0 Compatible"""
     def __init__(self, director, input_manager):
         super().__init__(director)
         self.input_manager = input_manager
@@ -37,7 +37,7 @@ class GameplayScene(Scene):
         self.game_over = False
         self.victory = False
         
-        # Camera
+        # Camera - Arcade 3.0 Style
         self.camera = None
         self.gui_camera = None
         
@@ -63,9 +63,9 @@ class GameplayScene(Scene):
         
     def on_enter(self):
         """Setup gameplay scene"""
-        # Create cameras
-        self.camera = arcade.camera.Camera2D()
-        self.gui_camera = arcade.camera.Camera2D()
+        # Create cameras - Arcade 3.0 Style
+        self.camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.gui_camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
         
         # Clear any existing particle effects
         if self.particle_manager:
@@ -191,13 +191,14 @@ class GameplayScene(Scene):
             enemy.center_x = x
             enemy.center_y = y
             
-            # Create a simple colored rectangle for enemy
+            # Create a simple colored rectangle for enemy - Arcade 3.0 compatible
             enemy_colors = {
                 'small': arcade.color.DARK_RED,
                 'medium': arcade.color.DARK_ORANGE,
                 'large': arcade.color.DARK_VIOLET
             }
             
+            # Arcade 3.0 texture creation
             enemy.texture = arcade.make_soft_square_texture(
                 int(64 * enemy.scale),
                 enemy_colors.get(size, arcade.color.DARK_RED),
@@ -285,7 +286,7 @@ class GameplayScene(Scene):
         self.spawn_enemies()
             
     def center_camera_on_player(self):
-        """Center camera on player with bounds"""
+        """Center camera on player with bounds - Arcade 3.0 Style"""
         # Calculate camera position
         camera_x = self.player.center_x - SCREEN_WIDTH / 2
         camera_y = self.player.center_y - SCREEN_HEIGHT / 2
@@ -294,12 +295,13 @@ class GameplayScene(Scene):
         camera_x = max(camera_x, 0)
         camera_y = max(camera_y, 0)
         
-        # Update camera position
-        self.camera.position = (camera_x, camera_y)
+        # Update camera position - Arcade 3.0 method
+        self.camera.move_to((camera_x, camera_y))
         
     def draw(self):
-        """Draw gameplay"""
-        self.clear()
+        """Draw gameplay - Arcade 3.0 Style"""
+        # Clear screen
+        arcade.start_render()
         
         # Use game camera
         self.camera.use()

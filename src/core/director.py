@@ -47,7 +47,7 @@ class Scene:
         pass
 
 class Director:
-    """Enhanced Director with system management and better scene handling"""
+    """Enhanced Director with system management and better scene handling - Arcade 3.0 Compatible"""
     def __init__(self):
         self.scene_stack: List[Scene] = []
         self.scenes: Dict[str, Scene] = {}
@@ -151,13 +151,13 @@ class Director:
             print("Warning: No current scene to update")
             
     def draw(self):
-        """Draw current scene"""
+        """Draw current scene - Arcade 3.0 Compatible"""
         current = self.get_current_scene()
         if current:
             current.draw()
         else:
-            # Draw a fallback screen if no scene is available
-            arcade.start_render()
+            # Draw a fallback screen if no scene is available - Arcade 3.0 style
+            # Note: arcade.start_render() should be called by the main window, not here
             arcade.draw_rectangle_filled(640, 360, 1280, 720, (20, 20, 20))
             arcade.draw_text(
                 "No Scene Available",

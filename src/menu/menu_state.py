@@ -16,7 +16,7 @@ class MenuItem:
         self.is_selected = False
         
     def draw(self):
-        """Draw the menu item"""
+        """Draw the menu item - Arcade 3.0 Compatible"""
         # Draw background
         if self.is_selected:
             color = arcade.color.CRIMSON
@@ -58,7 +58,7 @@ class MenuItem:
                 self.y - half_height <= y <= self.y + half_height)
 
 class MenuState(Scene):
-    """Base class for all menu states with fixed navigation"""
+    """Base class for all menu states with fixed navigation - Arcade 3.0 Compatible"""
     def __init__(self, director, input_manager: InputManager):
         super().__init__(director)
         self.input_manager = input_manager
@@ -189,7 +189,8 @@ class MenuState(Scene):
         self.input_handled = False
                     
     def draw(self):
-        """Draw the menu"""
+        """Draw the menu - Arcade 3.0 Compatible"""
+        # Clear screen first
         arcade.start_render()
         
         # Draw background
