@@ -1,7 +1,9 @@
-# ============================================================================
-# FILE: src/systems/gravity.py
-# ============================================================================
+"""
+Gravity system for different zones
+"""
+
 from enum import Enum
+from src.core.constants import GRAVITY_NORMAL, GRAVITY_LOW, GRAVITY_REVERSE, GRAVITY_ZERO, GRAVITY_WATER
 
 class GravityMode(Enum):
     """Different gravity modes"""
@@ -12,15 +14,17 @@ class GravityMode(Enum):
     WATER = "water"
 
 class GravityManager:
-    """Manages different gravity modes for different zones"""
+    """Manages gravity for different zones"""
+    
     def __init__(self):
         self.gravity_values = {
-            GravityMode.NORMAL: (0, -0.5),
-            GravityMode.LOW: (0, -0.2),
-            GravityMode.REVERSE: (0, 0.5),
-            GravityMode.ZERO: (0, 0),
-            GravityMode.WATER: (0, -0.15)  # Slower fall with drag
+            GravityMode.NORMAL: GRAVITY_NORMAL,
+            GravityMode.LOW: GRAVITY_LOW,
+            GravityMode.REVERSE: GRAVITY_REVERSE,
+            GravityMode.ZERO: GRAVITY_ZERO,
+            GravityMode.WATER: GRAVITY_WATER
         }
+        
         self.current_mode = GravityMode.NORMAL
         self.zone_gravity = {}  # Map zones to gravity modes
         
@@ -44,6 +48,7 @@ class GravityManager:
     def apply_gravity(self, velocity: list, zone_id: str = None, delta_time: float = 1/60):
         """Apply gravity to velocity vector"""
         gx, gy = self.get_gravity(zone_id)
+        
         velocity[0] += gx * delta_time * 60
         velocity[1] += gy * delta_time * 60
         

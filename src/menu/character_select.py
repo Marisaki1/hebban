@@ -1,31 +1,29 @@
-# ============================================================================
-# FILE: src/menu/character_select.py
-# ============================================================================
-from typing import List
+"""
+Character selection menu
+"""
+
 import arcade
-
-from src.core.constants import SCREEN_HEIGHT, SCREEN_WIDTH
-from src.input.input_manager import InputAction
 from src.menu.menu_state import MenuState
-from src.menu.squad_select import CharacterInfo
-
+from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
+from src.input.input_manager import InputAction
 
 class CharacterGrid:
     """3x2 character selection grid"""
-    def __init__(self, x: float, y: float, characters: List[dict]):
+    
+    def __init__(self, x: float, y: float, characters: list):
         self.x = x
         self.y = y
         self.characters = characters
         self.selected_index = 0
-        self.cell_width = 150
-        self.cell_height = 180
+        self.cell_width = 120
+        self.cell_height = 150
         self.spacing = 20
         self.grid_cells = []
         self._create_grid()
         
     def _create_grid(self):
         """Create grid cells for characters"""
-        for i, char in enumerate(self.characters[:6]):
+        for i, char in enumerate(self.characters[:6]):  # Max 6 characters
             row = i // 3
             col = i % 3
             
@@ -47,7 +45,8 @@ class CharacterGrid:
         if direction == 'up' and self.selected_index >= 3:
             self.selected_index -= 3
         elif direction == 'down' and self.selected_index < 3:
-            self.selected_index += 3
+            if self.selected_index + 3 < len(self.characters):
+                self.selected_index += 3
         elif direction == 'left' and self.selected_index % 3 > 0:
             self.selected_index -= 1
         elif direction == 'right' and self.selected_index % 3 < 2:
@@ -66,82 +65,282 @@ class CharacterGrid:
     def draw(self):
         """Draw the character grid"""
         for cell in self.grid_cells:
+            # Determine colors
+            if cell['selected']:
+                bg_color = arcade.color.CRIMSON
+                border_width = 3
+            else:
+                bg_color = arcade.color.DARK_GRAY
+                border_width = 1
+                
             # Draw cell background
-            color = arcade.color.CRIMSON if cell['selected'] else arcade.color.DARK_GRAY
             arcade.draw_rectangle_filled(
-                cell['x'], cell['y'], 
-                self.cell_width, self.cell_height, 
-                color
+                cell['x'], cell['y'],
+                self.cell_width, self.cell_height,
+                bg_color
             )
             
             # Draw border
-            border_color = arcade.color.WHITE if cell['selected'] else arcade.color.GRAY
-            border_width = 3 if cell['selected'] else 1
             arcade.draw_rectangle_outline(
                 cell['x'], cell['y'],
                 self.cell_width, self.cell_height,
-                border_color, border_width
+                arcade.color.WHITE, border_width
             )
             
-            # Draw character portrait placeholder
-            portrait_size = 80
+            # Draw character portrait (placeholder)
+            portrait_size = 60
+            char_color = cell['character'].get('color', (100, 100, 100))
             arcade.draw_rectangle_filled(
                 cell['x'], cell['y'] + 20,
                 portrait_size, portrait_size,
-                arcade.color.DARK_BLUE_GRAY
+                char_color
+            )
+            arcade.draw_rectangle_outline(
+                cell['x'], cell['y'] + 20,
+                portrait_size, portrait_size,
+                arcade.color.WHITE, 1
             )
             
-            # Draw character name
+            # Character initial
+            char_name = cell['character'].get('name', 'Character')
             arcade.draw_text(
-                cell['character']['name'],
-                cell['x'], cell['y'] - 60,
+                char_name[0],
+                cell['x'], cell['y'] + 20,
                 arcade.color.WHITE,
-                14,
+                24,
                 anchor_x="center",
-                font_name="Arial"
+                anchor_y="center"
+            )
+            
+            # Character name
+            arcade.draw_text(
+                char_name.split()[0],  # First name only
+                cell['x'], cell['y'] - 40,
+                arcade.color.WHITE,
+                12,
+                anchor_x="center"
+            )
+
+class DetailedCharacterInfo:
+    """Detailed character information panel"""
+    
+    def __init__(self, x: float, y: float):
+        self.x = x
+        self.y = y
+        self.width = 350
+        self.height = 600
+        self.character = None
+        
+    def set_character(self, character_data: dict):
+        """Set the character to display"""
+        self.character = character_data
+        
+    def draw(self):
+        """Draw detailed character information"""
+        # Background panel
+        arcade.draw_rectangle_filled(
+            self.x, self.y, self.width, self.height,
+            arcade.color.DARK_BLUE_GRAY
+        )
+        arcade.draw_rectangle_outline(
+            self.x, self.y, self.width, self.height,
+            arcade.color.WHITE, 2
+        )
+        
+        if not self.character:
+            return
+            
+        # Large character portrait
+        portrait_size = 150
+        char_color = self.character.get('color', (100, 100, 100))
+        arcade.draw_rectangle_filled(
+            self.x, self.y + 200, portrait_size, portrait_size, char_color
+        )
+        arcade.draw_rectangle_outline(
+            self.x, self.y + 200, portrait_size, portrait_size,
+            arcade.color.WHITE, 3
+        )
+        
+        # Character initial
+        char_name = self.character.get('name', 'Character')
+        arcade.draw_text(
+            char_name[0],
+            self.x, self.y + 200,
+            arcade.color.WHITE,
+            64,
+            anchor_x="center",
+            anchor_y="center"
+        )
+        
+        # Character name and title
+        arcade.draw_text(
+            char_name,
+            self.x, self.y + 100,
+            arcade.color.WHITE,
+            24,
+            anchor_x="center"
+        )
+        
+        title = self.character.get('title', 'Fighter')
+        arcade.draw_text(
+            title,
+            self.x, self.y + 70,
+            arcade.color.YELLOW,
+            16,
+            anchor_x="center"
+        )
+        
+        # Bio
+        bio = self.character.get('bio', 'No description available')
+        # Split long bio into multiple lines
+        words = bio.split()
+        lines = []
+        current_line = ""
+        for word in words:
+            if len(current_line + word) < 35:
+                current_line += word + " "
+            else:
+                lines.append(current_line.strip())
+                current_line = word + " "
+        if current_line:
+            lines.append(current_line.strip())
+            
+        bio_y = self.y + 30
+        for i, line in enumerate(lines[:3]):  # Max 3 lines
+            arcade.draw_text(
+                line,
+                self.x, bio_y - i * 20,
+                arcade.color.LIGHT_GRAY,
+                12,
+                anchor_x="center"
+            )
+            
+        # Stats with bars
+        stat_y = self.y - 50
+        stat_spacing = 40
+        max_stat = 15  # For scaling bars
+        
+        stats = [
+            ('Health', self.character.get('health', 100), 150),  # Different scale
+            ('Speed', self.character.get('speed', 5), max_stat),
+            ('Jump', self.character.get('jump_power', 15), max_stat),
+            ('Attack', self.character.get('attack', 8), max_stat),
+            ('Defense', self.character.get('defense', 6), max_stat)
+        ]
+        
+        for i, (stat_name, value, scale) in enumerate(stats):
+            y_pos = stat_y - i * stat_spacing
+            
+            # Stat name
+            arcade.draw_text(
+                f"{stat_name}:",
+                self.x - 150, y_pos,
+                arcade.color.WHITE,
+                14
+            )
+            
+            # Stat value
+            display_value = value if stat_name != 'Health' else value
+            arcade.draw_text(
+                str(display_value),
+                self.x + 120, y_pos,
+                arcade.color.WHITE,
+                14
+            )
+            
+            # Stat bar
+            bar_width = 100
+            bar_height = 8
+            fill_percentage = min(value / scale, 1.0)
+            fill_width = bar_width * fill_percentage
+            
+            # Bar background
+            arcade.draw_rectangle_filled(
+                self.x + 20, y_pos,
+                bar_width, bar_height,
+                arcade.color.DARK_GRAY
+            )
+            
+            # Bar fill
+            if fill_width > 0:
+                # Color based on stat level
+                if fill_percentage > 0.7:
+                    bar_color = arcade.color.GREEN
+                elif fill_percentage > 0.4:
+                    bar_color = arcade.color.YELLOW
+                else:
+                    bar_color = arcade.color.RED
+                    
+                arcade.draw_rectangle_filled(
+                    self.x + 20 - bar_width/2 + fill_width/2, y_pos,
+                    fill_width, bar_height,
+                    bar_color
+                )
+                
+        # Abilities
+        ability_y = stat_y - 250
+        arcade.draw_text(
+            "Special Abilities:",
+            self.x, ability_y,
+            arcade.color.YELLOW,
+            16,
+            anchor_x="center"
+        )
+        
+        abilities = self.character.get('abilities', [])
+        for i, ability in enumerate(abilities[:4]):  # Show up to 4 abilities
+            arcade.draw_text(
+                f"• {ability}",
+                self.x - 150, ability_y - 30 - i * 25,
+                arcade.color.WHITE,
+                12
             )
 
 class CharacterSelectMenu(MenuState):
-    """Detailed character selection within a squad"""
+    """Character selection within a squad"""
+    
     def __init__(self, director, input_manager, squad_data: dict):
         super().__init__(director, input_manager)
         self.squad_data = squad_data
         self.title = f"Select Character - {squad_data['name']}"
+        self.scene_name = "character_select"
         
         # Character grid
         self.character_grid = CharacterGrid(
-            SCREEN_WIDTH // 2 - 100,
-            SCREEN_HEIGHT // 2 + 50,
+            SCREEN_WIDTH // 2 + 100,
+            SCREEN_HEIGHT // 2 + 100,
             squad_data['members']
         )
         
-        # Character info panel
-        self.character_info = CharacterInfo(150, SCREEN_HEIGHT // 2)
+        # Detailed character info
+        self.character_info = DetailedCharacterInfo(200, SCREEN_HEIGHT // 2)
         self.character_info.set_character(squad_data['members'][0])
         
-        # Confirmation state
-        self.character_confirmed = False
-        
     def on_enter(self):
-        """Setup character select specific controls"""
+        """Setup character select controls"""
         super().on_enter()
         
-        # Remove default menu navigation
-        self.input_manager.action_callbacks[InputAction.MENU_UP].clear()
-        self.input_manager.action_callbacks[InputAction.MENU_DOWN].clear()
+        # Clear default menu navigation
+        self.input_manager.clear_scene_callbacks(self.scene_name)
         
         # Add grid navigation
         self.input_manager.register_action_callback(
-            InputAction.MENU_UP, lambda: self.navigate_grid('up')
+            InputAction.MENU_UP, lambda: self.navigate_grid('up'), self.scene_name
         )
         self.input_manager.register_action_callback(
-            InputAction.MENU_DOWN, lambda: self.navigate_grid('down')
+            InputAction.MENU_DOWN, lambda: self.navigate_grid('down'), self.scene_name
         )
         self.input_manager.register_action_callback(
-            InputAction.MENU_LEFT, lambda: self.navigate_grid('left')
+            InputAction.MENU_LEFT, lambda: self.navigate_grid('left'), self.scene_name
         )
         self.input_manager.register_action_callback(
-            InputAction.MENU_RIGHT, lambda: self.navigate_grid('right')
+            InputAction.MENU_RIGHT, lambda: self.navigate_grid('right'), self.scene_name
+        )
+        self.input_manager.register_action_callback(
+            InputAction.SELECT, self.select_character, self.scene_name
+        )
+        self.input_manager.register_action_callback(
+            InputAction.BACK, self.go_back, self.scene_name
         )
         
     def navigate_grid(self, direction: str):
@@ -150,28 +349,25 @@ class CharacterSelectMenu(MenuState):
         selected_char = self.character_grid.get_selected_character()
         self.character_info.set_character(selected_char)
         
-    def select_item(self):
+    def select_character(self):
         """Confirm character selection"""
-        if not self.character_confirmed:
-            self.character_confirmed = True
-            selected_char = self.character_grid.get_selected_character()
+        selected_char = self.character_grid.get_selected_character()
+        
+        # Save selection to save manager
+        save_manager = self.director.get_system('save_manager')
+        if save_manager and save_manager.current_save:
+            save_manager.current_save.game_data['selected_squad'] = self.squad_data['id']
+            save_manager.current_save.game_data['selected_character'] = selected_char['id']
             
-            # Save selection
-            save_manager = self.director.get_system('save_manager')
-            if save_manager.current_save:
-                save_manager.current_save.game_data['selected_squad'] = self.squad_data['id']
-                save_manager.current_save.game_data['selected_character'] = selected_char['id']
-                
-            # Proceed to lobby or game
-            if self.director.get_system('is_multiplayer'):
-                self.director.change_scene('lobby_menu')
-            else:
-                self.director.change_scene('gameplay')
-                
+        # Check if multiplayer
+        is_multiplayer = self.director.get_system('is_multiplayer')
+        if is_multiplayer:
+            self.director.change_scene('lobby_menu')
+        else:
+            self.director.change_scene('gameplay')
+            
     def draw(self):
         """Draw character selection screen"""
-        arcade.start_render()
-        
         # Background
         arcade.draw_rectangle_filled(
             SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2,
@@ -185,10 +381,8 @@ class CharacterSelectMenu(MenuState):
             SCREEN_WIDTH // 2,
             SCREEN_HEIGHT - 60,
             arcade.color.CRIMSON,
-            32,
-            anchor_x="center",
-            font_name="Arial",
-            bold=True
+            28,
+            anchor_x="center"
         )
         
         # Draw character grid
@@ -198,12 +392,11 @@ class CharacterSelectMenu(MenuState):
         self.character_info.draw()
         
         # Instructions
-        instruction_text = "Press ENTER to confirm" if not self.character_confirmed else "Character confirmed!"
         arcade.draw_text(
-            instruction_text,
+            "Use Arrow Keys to select, ENTER to confirm, ESC to go back",
             SCREEN_WIDTH // 2,
             40,
             arcade.color.WHITE,
-            16,
+            14,
             anchor_x="center"
         )

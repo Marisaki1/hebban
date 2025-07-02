@@ -1,454 +1,359 @@
-# src/entities/player.py - Fixed for Arcade 3.0.0
 """
-Player character with full movement and combat - Fixed for Arcade 3.0.0
+Player character entity for Arcade 3.0.0
 """
+
 import arcade
-from src.systems.animation import Animation, AnimationController, AnimationState
+from typing import List, Optional
 from src.input.input_manager import InputAction
-from typing import Optional, List
+from src.core.constants import ATTACK_COOLDOWN, COMBO_TIME_LIMIT, INVULNERABLE_TIME
 
 class Player(arcade.Sprite):
-    """Player character with full movement and combat - Arcade 3.0.0 compatible"""
+    """Player character with movement, combat and abilities"""
+    
     def __init__(self, character_data: dict, input_manager):
         super().__init__()
         
         # Character data
         self.character_data = character_data
-        self.character_id = character_data.get('id', 'unknown')
-        self.player_id = None  # Set for multiplayer
+        self.character_id = character_data.get('id', 'ruka')
         
-        # Stats
+        # Stats from character data
         self.max_health = character_data.get('health', 100)
         self.health = self.max_health
         self.move_speed = character_data.get('speed', 5)
         self.jump_power = character_data.get('jump_power', 15)
+        self.attack_power = character_data.get('attack', 8)
+        self.defense = character_data.get('defense', 6)
         self.abilities = character_data.get('abilities', [])
+        
+        # Set texture from asset manager
+        self._load_texture()
         
         # Physics
         self.velocity = [0, 0]
         self.on_ground = False
         self.facing_right = True
+        
+        # Special abilities
         self.can_double_jump = 'Double Jump' in self.abilities
         self.has_double_jumped = False
         
-        # Combat
+        # Combat system
         self.is_attacking = False
         self.attack_cooldown = 0
         self.attack_combo = 0
         self.combo_timer = 0
-        self.max_combo_time = 2.0
+        self.max_combo_time = COMBO_TIME_LIMIT
+        
+        # Status effects
         self.invulnerable = False
         self.invulnerable_time = 0
-        
-        # Buffs and effects
         self.attack_boost = 1.0
         self.defense_boost = 1.0
-        self.active_powerups = []
         
-        # Score tracking
+        # Game state
         self.score = 0
         
-        # Animation
-        self.animation_controller = AnimationController()
-        self.setup_animations()
-        
-        # Input
+        # Input reference
         self.input_manager = input_manager
         
-        # Collision
-        self.points = [
-            [-16, -32], [16, -32],  # Bottom
-            [16, 32], [-16, 32]     # Top
-        ]
+    def _load_texture(self):
+        """Load character texture"""
+        try:
+            # Try to get texture from asset manager
+            from src.core.game import HeavenBurnsRed
+            game = arcade.get_window()
+            if hasattr(game, 'asset_manager'):
+                texture = game.asset_manager.get_texture(f"{self.character_id}_idle")
+                if texture:
+                    self.texture = texture
+                    return
+        except:
+            pass
+            
+        # Fallback - no texture (will be invisible but functional)
+        print(f"No texture found for character {self.character_id}")
         
-    def setup_animations(self):
-        """Setup character animations using Arcade 3.0.0 compatible methods"""
-        try:
-            # Try to use sprite manager first
-            from src.core.sprite_manager import sprite_manager
-            self.animation_controller = sprite_manager.create_animation_controller(self.character_id)
-            
-            # Get a texture for the sprite
-            portrait = sprite_manager.get_portrait(self.character_id)
-            if portrait:
-                self.texture = portrait
-            
-            print(f"✓ Loaded animations for {self.character_id}")
-            return
-        except Exception as e:
-            print(f"Sprite manager failed for {self.character_id}: {e}")
-        
-        try:
-            # Fallback to asset manager
-            from src.core.asset_manager import asset_manager
-            
-            # Try to get character texture
-            texture = asset_manager.get_texture(f'{self.character_id}_idle')
-            if not texture:
-                texture = asset_manager.get_texture('default_character')
-            
-            if texture:
-                self.texture = texture
-            
-            # Create simple animations using single texture
-            for state in AnimationState:
-                animation = Animation([texture] if texture else [], 0.1, loop=(state != AnimationState.DEATH))
-                self.animation_controller.add_animation(state, animation)
-                
-            print(f"✓ Created fallback animations for {self.character_id}")
-            return
-        except Exception as e:
-            print(f"Asset manager fallback failed: {e}")
-            
-        try:
-            # Ultimate fallback - create placeholder texture
-            self._create_placeholder_texture()
-        except Exception as e:
-            print(f"Placeholder creation failed: {e}")
-            
-    def _create_placeholder_texture(self):
-        """Create a placeholder texture using Arcade 3.0.0 methods"""
-        try:
-            # Method 1: Try Arcade 3.0.0 texture creation
-            texture = arcade.Texture.create_filled(
-                f"player_{self.character_id}", 
-                (64, 64), 
-                arcade.color.BLUE
-            )
-            self.texture = texture
-        except Exception:
-            try:
-                # Method 2: Try Pillow 11.0.0 creation
-                from PIL import Image
-                image = Image.new('RGBA', (64, 64), (0, 100, 200, 255))
-                texture = arcade.Texture(f"player_{self.character_id}_pil", image)
-                self.texture = texture
-            except Exception:
-                # Method 3: No texture - sprite will use default
-                pass
-        
-        # Create simple animation with available texture
-        if self.texture:
-            for state in AnimationState:
-                animation = Animation([self.texture], 0.1, loop=(state != AnimationState.DEATH))
-                self.animation_controller.add_animation(state, animation)
-            
-    def update(self, delta_time: float, gravity_manager, collision_map):
+    def update(self, delta_time: float, gravity_manager, platforms):
         """Update player state"""
-        try:
-            # Handle input
-            self.handle_input()
+        # Handle input
+        self.handle_input()
+        
+        # Apply gravity
+        if gravity_manager:
+            gravity_manager.apply_gravity(self.velocity, None, delta_time)
+        else:
+            # Fallback gravity
+            self.velocity[1] -= 0.5 * delta_time * 60
             
-            # Apply gravity
-            zone_id = self.get_current_zone(collision_map)
-            if gravity_manager:
-                gravity_manager.apply_gravity(self.velocity, zone_id, delta_time)
-            else:
-                # Fallback gravity
-                self.velocity[1] -= 0.5 * delta_time * 60
-            
-            # Apply movement
-            self.center_x += self.velocity[0] * delta_time * 60
-            self.center_y += self.velocity[1] * delta_time * 60
-            
-            # Check collisions
-            self.check_collisions(collision_map)
-            
-            # Update combat timers
-            if self.attack_cooldown > 0:
-                self.attack_cooldown -= delta_time
-                
-            if self.invulnerable_time > 0:
-                self.invulnerable_time -= delta_time
-                if self.invulnerable_time <= 0:
-                    self.invulnerable = False
-                    
-            # Update combo timer
-            if self.attack_combo > 0:
-                self.combo_timer -= delta_time
-                if self.combo_timer <= 0:
-                    self.attack_combo = 0
-                    
-            # Update powerups
-            self.update_powerups(delta_time)
-            
-            # Update animation state
-            self.update_animation_state()
-            if self.animation_controller:
-                self.animation_controller.update(delta_time)
-                
-                # Update texture from animation
-                new_texture = self.animation_controller.get_current_texture()
-                if new_texture:
-                    self.texture = new_texture
-                    
-        except Exception as e:
-            print(f"Player update error: {e}")
-            
+        # Apply movement
+        self.center_x += self.velocity[0] * delta_time * 60
+        self.center_y += self.velocity[1] * delta_time * 60
+        
+        # Check platform collisions
+        self.check_platform_collisions(platforms)
+        
+        # Update timers
+        self.update_timers(delta_time)
+        
+        # Keep on screen bounds
+        self.check_screen_bounds()
+        
     def handle_input(self):
         """Handle player input"""
-        try:
-            if not self.input_manager:
-                return
-                
-            # Movement
-            move_x, _ = self.input_manager.get_movement_vector()
-            self.velocity[0] = move_x * self.move_speed
+        if not self.input_manager:
+            return
             
-            if move_x > 0:
-                self.facing_right = True
-            elif move_x < 0:
-                self.facing_right = False
-                
-            # Jump
-            if self.input_manager.is_action_pressed(InputAction.JUMP):
-                self.jump()
-                
-            # Actions
-            if self.input_manager.is_action_pressed(InputAction.ACTION_1):
-                self.attack(1)
-            elif self.input_manager.is_action_pressed(InputAction.ACTION_2):
-                self.attack(2)
-                
-        except Exception as e:
-            print(f"Input handling error: {e}")
+        # Movement
+        move_x, _ = self.input_manager.get_movement_vector()
+        self.velocity[0] = move_x * self.move_speed
+        
+        # Update facing direction
+        if move_x > 0:
+            self.facing_right = True
+        elif move_x < 0:
+            self.facing_right = False
+            
+        # Jumping
+        if self.input_manager.is_action_pressed(InputAction.JUMP):
+            self.jump()
+            
+        # Combat
+        if self.input_manager.is_action_pressed(InputAction.ACTION_1):
+            self.attack(1)
+        elif self.input_manager.is_action_pressed(InputAction.ACTION_2):
+            self.attack(2)
             
     def jump(self):
-        """Handle jumping"""
-        try:
-            if self.on_ground:
-                self.velocity[1] = self.jump_power
-                self.on_ground = False
-                self.has_double_jumped = False
-            elif self.can_double_jump and not self.has_double_jumped:
-                self.velocity[1] = self.jump_power * 0.8
-                self.has_double_jumped = True
-        except Exception as e:
-            print(f"Jump error: {e}")
+        """Handle jumping with double jump ability"""
+        if self.on_ground:
+            # Normal jump
+            self.velocity[1] = self.jump_power
+            self.on_ground = False
+            self.has_double_jumped = False
             
+            # Play jump sound
+            try:
+                game = arcade.get_window()
+                if hasattr(game, 'sound_manager'):
+                    game.sound_manager.play_sfx("jump")
+            except:
+                pass
+                
+        elif self.can_double_jump and not self.has_double_jumped:
+            # Double jump
+            self.velocity[1] = self.jump_power * 0.8
+            self.has_double_jumped = True
+            
+            # Create air dash effect if Yuki
+            if self.character_id == 'yuki':
+                try:
+                    game = arcade.get_window()
+                    if hasattr(game, 'particle_manager'):
+                        game.particle_manager.create_effect('dust', self.center_x, self.center_y)
+                except:
+                    pass
+                    
     def attack(self, attack_type: int):
         """Perform attack"""
-        try:
-            if self.attack_cooldown <= 0 and not self.is_attacking:
-                self.is_attacking = True
-                self.attack_cooldown = 0.5
-                
-                # Update combo
-                if self.combo_timer > 0:
-                    self.attack_combo += 1
-                else:
-                    self.attack_combo = 1
-                self.combo_timer = self.max_combo_time
-                
-                # Set animation
-                if self.animation_controller:
+        if self.attack_cooldown <= 0 and not self.is_attacking:
+            self.is_attacking = True
+            self.attack_cooldown = ATTACK_COOLDOWN
+            
+            # Update combo
+            if self.combo_timer > 0:
+                self.attack_combo += 1
+            else:
+                self.attack_combo = 1
+            self.combo_timer = self.max_combo_time
+            
+            # Special attacks based on character
+            self.perform_special_attack(attack_type)
+            
+            # Play attack sound
+            try:
+                game = arcade.get_window()
+                if hasattr(game, 'sound_manager'):
                     if attack_type == 1:
-                        self.animation_controller.change_state(AnimationState.ATTACK_1, force=True)
+                        game.sound_manager.play_sfx("dash_attack")
                     else:
-                        self.animation_controller.change_state(AnimationState.ATTACK_2, force=True)
-                        
-                    self.animation_controller.lock_state()
+                        game.sound_manager.play_sfx("quick_strike")
+            except:
+                pass
+                
+    def perform_special_attack(self, attack_type: int):
+        """Perform character-specific special attacks"""
+        # Ruka - Dash Attack
+        if self.character_id == 'ruka' and attack_type == 1:
+            if 'Dash Attack' in self.abilities:
+                direction = 1 if self.facing_right else -1
+                self.center_x += 100 * direction
+                
+                # Create impact effect
+                try:
+                    game = arcade.get_window()
+                    if hasattr(game, 'particle_manager'):
+                        game.particle_manager.create_effect('impact', self.center_x, self.center_y)
+                except:
+                    pass
                     
-        except Exception as e:
-            print(f"Attack error: {e}")
-            
-    def on_enemy_hit(self, enemy) -> int:
-        """Called when player hits an enemy, returns damage dealt"""
-        try:
-            base_damage = self.character_data.get('attack', 10)
-            combo_multiplier = 1.0 + (self.attack_combo - 1) * 0.2
-            damage = int(base_damage * self.attack_boost * combo_multiplier)
-            
-            # Reset attack state
-            self.is_attacking = False
-            
-            return damage
-        except Exception as e:
-            print(f"Enemy hit calculation error: {e}")
-            return 10  # Default damage
-            
-    def take_damage(self, damage: int):
-        """Take damage"""
-        try:
-            if not self.invulnerable:
-                actual_damage = max(1, int(damage / self.defense_boost))
-                self.health -= actual_damage
-                self.invulnerable = True
-                self.invulnerable_time = 1.0
+        # Yuki - Quick Strike
+        elif self.character_id == 'yuki' and attack_type == 1:
+            if 'Quick Strike' in self.abilities:
+                # Multi-hit attack (handled in enemy collision)
+                self.attack_combo += 2  # Bonus combo for multi-hit
                 
-                # Reset combo on taking damage
-                self.attack_combo = 0
-                self.combo_timer = 0
+        # Karen - Ground Pound
+        elif self.character_id == 'karen' and attack_type == 2:
+            if 'Ground Pound' in self.abilities and not self.on_ground:
+                self.velocity[1] = -self.jump_power * 1.5  # Fast downward slam
                 
-                if self.health <= 0:
-                    self.health = 0
-                    if self.animation_controller:
-                        self.animation_controller.change_state(AnimationState.DEATH, force=True)
-                else:
-                    if self.animation_controller:
-                        self.animation_controller.change_state(AnimationState.HURT, force=True)
-                        
-        except Exception as e:
-            print(f"Take damage error: {e}")
-                
-    def update_powerups(self, delta_time: float):
-        """Update active powerups"""
-        try:
-            expired_powerups = []
-            
-            for i, powerup in enumerate(self.active_powerups):
-                powerup['duration'] -= delta_time
-                if powerup['duration'] <= 0:
-                    expired_powerups.append(i)
-                    
-                    # Remove powerup effect
-                    if powerup['type'] == 'speed':
-                        self.move_speed /= powerup.get('boost', 1.0)
-                    elif powerup['type'] == 'damage':
-                        self.attack_boost = 1.0
-                    elif powerup['type'] == 'defense':
-                        self.defense_boost = 1.0
-                        
-            # Remove expired powerups (in reverse order to maintain indices)
-            for i in reversed(expired_powerups):
-                self.active_powerups.pop(i)
-                
-        except Exception as e:
-            print(f"Powerup update error: {e}")
-            
-    def check_collisions(self, collision_map):
-        """Check and resolve collisions"""
-        try:
-            # Ground collision
-            self.on_ground = False
-            
-            # Simple ground check - in full implementation use tilemap
-            if self.center_y <= 100:  # Ground level
+    def check_platform_collisions(self, platforms):
+        """Check and resolve platform collisions"""
+        if not platforms:
+            # Simple ground collision
+            if self.center_y <= 100:
                 self.center_y = 100
                 self.velocity[1] = 0
                 self.on_ground = True
-                
-            # Keep player on screen
-            if self.center_x < 32:
-                self.center_x = 32
-            elif self.center_x > 2000 - 32:
-                self.center_x = 2000 - 32
-                
-        except Exception as e:
-            print(f"Collision check error: {e}")
-            
-    def get_current_zone(self, collision_map) -> Optional[str]:
-        """Get current gravity zone"""
-        # In full implementation, check tilemap for zone
-        return None
-        
-    def update_animation_state(self):
-        """Update animation based on current state"""
-        try:
-            if not self.animation_controller or self.animation_controller.state_locked:
-                return
-                
-            if self.velocity[1] > 0:
-                self.animation_controller.change_state(AnimationState.JUMP)
-            elif self.velocity[1] < -1:
-                self.animation_controller.change_state(AnimationState.FALL)
-            elif abs(self.velocity[0]) > 0.1:
-                self.animation_controller.change_state(AnimationState.RUN)
+                self.has_double_jumped = False
             else:
-                self.animation_controller.change_state(AnimationState.IDLE)
-                
-        except Exception as e:
-            print(f"Animation state update error: {e}")
+                self.on_ground = False
+            return
             
-    def set_animation_speed(self, animation_name: str, speed_multiplier: float):
-        """Set animation speed for debugging/testing"""
-        try:
-            from src.core.sprite_manager import sprite_manager
-            sprite_manager.set_character_animation_speed(self.character_id, animation_name, speed_multiplier)
-            print(f"Animation speed change: {animation_name} -> {speed_multiplier}x")
-        except Exception as e:
-            print(f"Animation speed change failed: {e}")
+        # Check collision with platform sprites
+        self.on_ground = False
         
-    def heal(self, amount: int):
-        """Heal the player"""
+        platform_hits = arcade.check_for_collision_with_list(self, platforms)
+        for platform in platform_hits:
+            # Simple top collision (landing on platform)
+            if self.velocity[1] <= 0 and self.center_y > platform.center_y:
+                self.center_y = platform.top + self.height // 2
+                self.velocity[1] = 0
+                self.on_ground = True
+                self.has_double_jumped = False
+                break
+                
+    def check_screen_bounds(self):
+        """Keep player within screen bounds"""
+        # Left boundary
+        if self.center_x < 32:
+            self.center_x = 32
+            
+        # Right boundary (assuming level width of 2000)
+        if self.center_x > 2000 - 32:
+            self.center_x = 2000 - 32
+            
+        # Bottom boundary (fall death)
+        if self.center_y < -100:
+            self.take_damage(self.health)  # Instant death from falling
+            
+    def update_timers(self, delta_time: float):
+        """Update various timers"""
+        # Attack cooldown
+        if self.attack_cooldown > 0:
+            self.attack_cooldown -= delta_time
+            
+        # Combo timer
+        if self.combo_timer > 0:
+            self.combo_timer -= delta_time
+            if self.combo_timer <= 0:
+                self.attack_combo = 0
+                
+        # Invulnerability timer
+        if self.invulnerable_time > 0:
+            self.invulnerable_time -= delta_time
+            if self.invulnerable_time <= 0:
+                self.invulnerable = False
+                
+        # End attack state
+        if self.is_attacking and self.attack_cooldown <= ATTACK_COOLDOWN * 0.5:
+            self.is_attacking = False
+            
+    def take_damage(self, damage: int):
+        """Take damage from enemy or environment"""
+        if self.invulnerable:
+            return
+            
+        # Apply defense
+        actual_damage = max(1, int(damage / self.defense_boost))
+        self.health -= actual_damage
+        
+        # Set invulnerability
+        self.invulnerable = True
+        self.invulnerable_time = INVULNERABLE_TIME
+        
+        # Reset combo on taking damage
+        self.attack_combo = 0
+        self.combo_timer = 0
+        
+        # Play hurt sound
         try:
-            old_health = self.health
-            self.health = min(self.health + amount, self.max_health)
-            return self.health - old_health
-        except Exception as e:
-            print(f"Heal error: {e}")
-            return 0
+            game = arcade.get_window()
+            if hasattr(game, 'sound_manager'):
+                game.sound_manager.play_sfx("hurt")
+        except:
+            pass
+            
+        # Check for death
+        if self.health <= 0:
+            self.health = 0
+            # Death will be handled by the gameplay scene
+            
+    def heal(self, amount: int) -> int:
+        """Heal the player"""
+        old_health = self.health
+        self.health = min(self.health + amount, self.max_health)
+        actual_heal = self.health - old_health
+        
+        # Create healing effect
+        if actual_heal > 0:
+            try:
+                game = arcade.get_window()
+                if hasattr(game, 'particle_manager'):
+                    game.particle_manager.create_effect('healing', self.center_x, self.center_y)
+                if hasattr(game, 'sound_manager'):
+                    game.sound_manager.play_sfx("collect_health")
+            except:
+                pass
+                
+        return actual_heal
         
     def add_score(self, points: int):
         """Add score points"""
+        self.score += points
+        
+        # Play score sound
         try:
-            self.score += points
-        except Exception as e:
-            print(f"Add score error: {e}")
+            game = arcade.get_window()
+            if hasattr(game, 'sound_manager'):
+                game.sound_manager.play_sfx("collect_coin")
+        except:
+            pass
+            
+    def get_attack_damage(self) -> int:
+        """Get current attack damage with modifiers"""
+        base_damage = self.attack_power
+        combo_multiplier = 1.0 + (self.attack_combo - 1) * 0.2
+        return int(base_damage * self.attack_boost * combo_multiplier)
+        
+    def reset_position(self, x: float, y: float):
+        """Reset player position (for respawning)"""
+        self.center_x = x
+        self.center_y = y
+        self.velocity = [0, 0]
+        self.on_ground = False
+        self.has_double_jumped = False
         
     def get_stats(self) -> dict:
-        """Get current player stats"""
-        try:
-            return {
-                'health': self.health,
-                'max_health': self.max_health,
-                'score': self.score,
-                'combo': self.attack_combo,
-                'facing_right': self.facing_right,
-                'on_ground': self.on_ground,
-                'is_attacking': self.is_attacking,
-                'active_powerups': len(self.active_powerups)
-            }
-        except Exception as e:
-            print(f"Get stats error: {e}")
-            return {
-                'health': 100,
-                'max_health': 100,
-                'score': 0,
-                'combo': 0,
-                'facing_right': True,
-                'on_ground': True,
-                'is_attacking': False,
-                'active_powerups': 0
-            }
-            
-    def add_powerup(self, powerup_type: str, duration: float, boost: float = 1.0):
-        """Add a powerup effect"""
-        try:
-            # Apply immediate effect
-            if powerup_type == 'speed':
-                self.move_speed *= boost
-            elif powerup_type == 'damage':
-                self.attack_boost = boost
-            elif powerup_type == 'defense':
-                self.defense_boost = boost
-            elif powerup_type == 'invincibility':
-                self.invulnerable = True
-                self.invulnerable_time = duration
-                
-            # Add to powerup list for tracking
-            self.active_powerups.append({
-                'type': powerup_type,
-                'duration': duration,
-                'boost': boost
-            })
-            
-        except Exception as e:
-            print(f"Add powerup error: {e}")
-            
-    def reset_position(self, x: float, y: float):
-        """Reset player position (useful for respawning)"""
-        try:
-            self.center_x = x
-            self.center_y = y
-            self.velocity = [0, 0]
-            self.on_ground = False
-        except Exception as e:
-            print(f"Reset position error: {e}")
-            
-    def debug_info(self) -> str:
-        """Get debug information about the player"""
-        try:
-            return f"Player {self.character_id}: HP={self.health}/{self.max_health}, Pos=({self.center_x:.1f}, {self.center_y:.1f}), Vel=({self.velocity[0]:.1f}, {self.velocity[1]:.1f})"
-        except Exception as e:
-            return f"Player debug error: {e}"
+        """Get current player stats for display"""
+        return {
+            'health': self.health,
+            'max_health': self.max_health,
+            'score': self.score,
+            'combo': self.attack_combo,
+            'facing_right': self.facing_right,
+            'on_ground': self.on_ground,
+            'is_attacking': self.is_attacking,
+            'abilities': len(self.abilities)
+        }

@@ -1,3 +1,7 @@
+"""
+Game constants and configuration
+"""
+
 import arcade
 
 # Screen dimensions
@@ -25,3 +29,19 @@ MAX_PLAYERS = 8
 DEFAULT_HEALTH = 100
 DEFAULT_SPEED = 5
 DEFAULT_JUMP_POWER = 15
+
+# Physics
+GRAVITY_NORMAL = (0, -0.5)
+GRAVITY_LOW = (0, -0.2)
+GRAVITY_REVERSE = (0, 0.5)
+GRAVITY_ZERO = (0, 0)
+GRAVITY_WATER = (0, -0.15)
+
+# Animation
+DEFAULT_FRAME_DURATION = 0.1
+SPRITE_SCALE = 1.0
+
+# Combat
+ATTACK_COOLDOWN = 0.5
+COMBO_TIME_LIMIT = 2.0
+INVULNERABLE_TIME = 1.0

@@ -1,9 +1,8 @@
 """
-Data module for squad and character configurations
+Game data definitions
 """
 from .squad_data import (
     SQUAD_DATA,
-    SPRITE_CONFIG,
     get_squad_data,
     get_all_squads,
     get_character_data,
@@ -12,9 +11,8 @@ from .squad_data import (
 
 __all__ = [
     'SQUAD_DATA',
-    'SPRITE_CONFIG', 
     'get_squad_data',
-    'get_all_squads',
+    'get_all_squads', 
     'get_character_data',
     'get_unlocked_squads'
 ]

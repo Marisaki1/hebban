@@ -1,20 +1,25 @@
-# src/menu/settings_menu.py - Fixed for Arcade 3.0
 """
-Game settings menu - Fixed for Arcade 3.0
+Game settings menu
 """
-from typing import List
-import arcade
 
-from src.core.constants import SCREEN_HEIGHT, SCREEN_WIDTH
+import arcade
 from src.menu.menu_state import MenuState
+from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
+from src.input.input_manager import InputAction
 
 class SettingsMenu(MenuState):
     """Game settings menu"""
+    
     def __init__(self, director, input_manager):
         super().__init__(director, input_manager)
         self.title = "Settings"
+        self.scene_name = "settings"
+        
+        # Settings categories
         self.categories = ['Video', 'Audio', 'Controls', 'Game']
         self.current_category = 0
+        
+        # Settings data
         self.settings_items = {
             'Video': [
                 {'name': 'Resolution', 'type': 'choice', 'options': ['1280x720', '1920x1080', '2560x1440'], 'current': 0},
@@ -34,7 +39,7 @@ class SettingsMenu(MenuState):
                 {'name': 'Move Right', 'type': 'keybind', 'key': 'D'},
                 {'name': 'Action 1', 'type': 'keybind', 'key': 'Z'},
                 {'name': 'Action 2', 'type': 'keybind', 'key': 'X'},
-                {'name': 'Controller Vibration', 'type': 'toggle', 'value': True}
+                {'name': 'Controller Support', 'type': 'toggle', 'value': True}
             ],
             'Game': [
                 {'name': 'Difficulty', 'type': 'choice', 'options': ['Easy', 'Normal', 'Hard', 'Nightmare'], 'current': 1},
@@ -43,11 +48,104 @@ class SettingsMenu(MenuState):
                 {'name': 'Language', 'type': 'choice', 'options': ['English', '日本語', '中文'], 'current': 0}
             ]
         }
+        
         self.selected_setting = 0
         self.editing_keybind = False
         
+    def on_enter(self):
+        """Setup settings-specific controls"""
+        super().on_enter()
+        
+        self.input_manager.clear_scene_callbacks(self.scene_name)
+        
+        # Category navigation
+        self.input_manager.register_action_callback(
+            InputAction.MENU_LEFT, self.change_category_left, self.scene_name
+        )
+        self.input_manager.register_action_callback(
+            InputAction.MENU_RIGHT, self.change_category_right, self.scene_name
+        )
+        
+        # Setting navigation
+        self.input_manager.register_action_callback(
+            InputAction.MENU_UP, self.navigate_up, self.scene_name
+        )
+        self.input_manager.register_action_callback(
+            InputAction.MENU_DOWN, self.navigate_down, self.scene_name
+        )
+        
+        # Setting modification
+        self.input_manager.register_action_callback(
+            InputAction.SELECT, self.modify_setting, self.scene_name
+        )
+        self.input_manager.register_action_callback(
+            InputAction.BACK, self.go_back, self.scene_name
+        )
+        
+    def change_category_left(self):
+        """Change to previous category"""
+        self.current_category = (self.current_category - 1) % len(self.categories)
+        self.selected_setting = 0
+        
+    def change_category_right(self):
+        """Change to next category"""
+        self.current_category = (self.current_category + 1) % len(self.categories)
+        self.selected_setting = 0
+        
+    def navigate_up(self):
+        """Navigate to previous setting"""
+        current_settings = self.settings_items[self.categories[self.current_category]]
+        self.selected_setting = (self.selected_setting - 1) % len(current_settings)
+        
+    def navigate_down(self):
+        """Navigate to next setting"""
+        current_settings = self.settings_items[self.categories[self.current_category]]
+        self.selected_setting = (self.selected_setting + 1) % len(current_settings)
+        
+    def modify_setting(self):
+        """Modify selected setting"""
+        current_settings = self.settings_items[self.categories[self.current_category]]
+        setting = current_settings[self.selected_setting]
+        
+        if setting['type'] == 'toggle':
+            setting['value'] = not setting['value']
+            self.apply_setting_change(setting)
+        elif setting['type'] == 'choice':
+            setting['current'] = (setting['current'] + 1) % len(setting['options'])
+            self.apply_setting_change(setting)
+        elif setting['type'] == 'keybind':
+            self.editing_keybind = True
+            # In a full implementation, would capture next key press
+        elif setting['type'] == 'slider':
+            # Increase slider value
+            setting['value'] = min(setting['max'], setting['value'] + 0.1)
+            self.apply_setting_change(setting)
+            
+    def apply_setting_change(self, setting):
+        """Apply setting change to game systems"""
+        # Audio settings
+        if setting['name'] == 'Master Volume':
+            sound_manager = self.director.get_system('sound_manager')
+            if sound_manager:
+                sound_manager.set_master_volume(setting['value'])
+        elif setting['name'] == 'SFX Volume':
+            sound_manager = self.director.get_system('sound_manager')
+            if sound_manager:
+                sound_manager.set_sfx_volume(setting['value'])
+        elif setting['name'] == 'Music Volume':
+            sound_manager = self.director.get_system('sound_manager')
+            if sound_manager:
+                sound_manager.set_music_volume(setting['value'])
+                
+        # Save settings to save data
+        save_manager = self.director.get_system('save_manager')
+        if save_manager and save_manager.current_save:
+            settings_data = save_manager.current_save.game_data.get('settings', {})
+            settings_data[setting['name']] = setting.get('value', setting.get('current', 0))
+            save_manager.current_save.game_data['settings'] = settings_data
+            
     def draw_setting_item(self, item: dict, x: float, y: float, selected: bool):
-        """Draw individual setting item using Arcade 3.0 functions"""
+        """Draw individual setting item"""
         # Background
         bg_color = arcade.color.DARK_RED if selected else arcade.color.DARK_GRAY
         arcade.draw_rectangle_filled(x, y, 600, 40, bg_color)
@@ -67,9 +165,9 @@ class SettingsMenu(MenuState):
             value_color = arcade.color.GREEN if item['value'] else arcade.color.RED
         elif item['type'] == 'slider':
             # Draw slider bar
-            bar_width = 200
+            bar_width = 150
             bar_x = x + 100
-            arcade.draw_rectangle_filled(bar_x, y, bar_width, 4, arcade.color.GRAY)
+            arcade.draw_rectangle_filled(bar_x, y, bar_width, 6, arcade.color.GRAY)
             
             # Draw slider handle
             handle_x = bar_x - bar_width/2 + (item['value'] * bar_width)
@@ -99,7 +197,7 @@ class SettingsMenu(MenuState):
             )
             
     def draw(self):
-        """Draw settings menu using Arcade 3.0 functions"""
+        """Draw settings menu"""
         # Background
         arcade.draw_rectangle_filled(
             SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2,
@@ -114,19 +212,22 @@ class SettingsMenu(MenuState):
             SCREEN_HEIGHT - 60,
             arcade.color.CRIMSON,
             36,
-            anchor_x="center",
-            font_name="Arial",
-            bold=True
+            anchor_x="center"
         )
         
         # Category tabs
-        tab_x = 200
+        tab_width = 150
+        tab_y = SCREEN_HEIGHT - 140
+        start_x = SCREEN_WIDTH // 2 - (len(self.categories) * tab_width) // 2
+        
         for i, category in enumerate(self.categories):
+            tab_x = start_x + i * tab_width
             color = arcade.color.CRIMSON if i == self.current_category else arcade.color.DARK_GRAY
-            arcade.draw_rectangle_filled(tab_x + i * 150, SCREEN_HEIGHT - 120, 140, 40, color)
+            
+            arcade.draw_rectangle_filled(tab_x, tab_y, tab_width - 10, 40, color)
             arcade.draw_text(
                 category,
-                tab_x + i * 150, SCREEN_HEIGHT - 120,
+                tab_x, tab_y,
                 arcade.color.WHITE,
                 18,
                 anchor_x="center",
@@ -135,7 +236,7 @@ class SettingsMenu(MenuState):
             
         # Settings items
         settings = self.settings_items[self.categories[self.current_category]]
-        start_y = SCREEN_HEIGHT - 200
+        start_y = SCREEN_HEIGHT - 220
         
         for i, item in enumerate(settings):
             self.draw_setting_item(
@@ -154,32 +255,3 @@ class SettingsMenu(MenuState):
             14,
             anchor_x="center"
         )
-        
-    def navigate_up(self):
-        """Navigate to previous setting"""
-        current_settings = self.settings_items[self.categories[self.current_category]]
-        self.selected_setting = (self.selected_setting - 1) % len(current_settings)
-        
-    def navigate_down(self):
-        """Navigate to next setting"""
-        current_settings = self.settings_items[self.categories[self.current_category]]
-        self.selected_setting = (self.selected_setting + 1) % len(current_settings)
-        
-    def change_category(self, direction: int):
-        """Change settings category"""
-        self.current_category = (self.current_category + direction) % len(self.categories)
-        self.selected_setting = 0
-        
-    def modify_setting(self, direction: int = 0):
-        """Modify selected setting"""
-        current_settings = self.settings_items[self.categories[self.current_category]]
-        setting = current_settings[self.selected_setting]
-        
-        if setting['type'] == 'toggle':
-            setting['value'] = not setting['value']
-        elif setting['type'] == 'choice':
-            setting['current'] = (setting['current'] + direction) % len(setting['options'])
-        elif setting['type'] == 'slider':
-            setting['value'] = max(setting['min'], min(setting['max'], setting['value'] + direction * 0.1))
-        elif setting['type'] == 'keybind':
-            self.editing_keybind = True

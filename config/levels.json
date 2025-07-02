@@ -1,52 +1,52 @@
 {
-  "chapters": [
-    {
-      "id": "chapter_1",
-      "name": "First Contact",
-      "description": "The Cancer invasion begins",
-      "levels": [
-        {
-          "id": "1-1",
-          "name": "City Under Siege",
-          "description": "Defend the city from the initial Cancer attack",
-          "tilemap": "level_1_1.tmx",
-          "background": "city_ruins_bg.png",
-          "music": "battle_theme_1.ogg",
-          "gravity_zones": {
-            "default": "normal",
-            "zone_1": {"type": "low", "area": [1000, 0, 1500, 500]}
+    "chapters": [
+      {
+        "id": "chapter_1",
+        "name": "First Contact",
+        "description": "The Cancer invasion begins",
+        "levels": [
+          {
+            "id": "1-1",
+            "name": "City Under Siege",
+            "description": "Defend the city from the initial Cancer attack",
+            "tilemap": "level_1_1.tmx",
+            "background": "city_ruins_bg.png",
+            "music": "battle_theme_1.ogg",
+            "gravity_zones": {
+              "default": "normal",
+              "zone_1": {"type": "low", "area": [1000, 0, 1500, 500]}
+            },
+            "enemy_spawns": [
+              {"type": "cancer_small", "position": [500, 200], "count": 3},
+              {"type": "cancer_medium", "position": [1000, 300], "count": 2},
+              {"type": "cancer_large", "position": [1500, 200], "count": 1}
+            ],
+            "objectives": [
+              {"type": "eliminate_all", "description": "Defeat all Cancers"},
+              {"type": "time_limit", "description": "Complete in under 5 minutes", "time": 300}
+            ],
+            "par_time": 180,
+            "unlock_condition": "default"
           },
-          "enemy_spawns": [
-            {"type": "cancer_small", "position": [500, 200], "count": 3},
-            {"type": "cancer_medium", "position": [1000, 300], "count": 2},
-            {"type": "cancer_large", "position": [1500, 200], "count": 1}
-          ],
-          "objectives": [
-            {"type": "eliminate_all", "description": "Defeat all Cancers"},
-            {"type": "time_limit", "description": "Complete in under 5 minutes", "time": 300}
-          ],
-          "par_time": 180,
-          "unlock_condition": "default"
-        },
-        {
-          "id": "1-2",
-          "name": "Rooftop Escape",
-          "description": "Navigate the rooftops to reach the evacuation point",
-          "tilemap": "level_1_2.tmx",
-          "background": "city_skyline_bg.png",
-          "music": "escape_theme.ogg",
-          "gravity_zones": {
-            "default": "normal",
-            "wind_zone": {"type": "low", "area": [0, 400, 2000, 800]}
-          },
-          "objectives": [
-            {"type": "reach_point", "description": "Reach the helicopter", "position": [1900, 600]},
-            {"type": "collect", "description": "Rescue 3 civilians", "count": 3}
-          ],
-          "par_time": 240,
-          "unlock_condition": "complete_1_1"
-        }
-      ]
-    }
-  ]
-}
+          {
+            "id": "1-2",
+            "name": "Rooftop Escape",
+            "description": "Navigate the rooftops to reach the evacuation point",
+            "tilemap": "level_1_2.tmx",
+            "background": "city_skyline_bg.png",
+            "music": "escape_theme.ogg",
+            "gravity_zones": {
+              "default": "normal",
+              "wind_zone": {"type": "low", "area": [0, 400, 2000, 800]}
+            },
+            "objectives": [
+              {"type": "reach_point", "description": "Reach the helicopter", "position": [1900, 600]},
+              {"type": "collect", "description": "Rescue 3 civilians", "count": 3}
+            ],
+            "par_time": 240,
+            "unlock_condition": "complete_1_1"
+          }
+        ]
+      }
+    ]
+  }

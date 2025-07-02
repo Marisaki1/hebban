@@ -1,6 +1,5 @@
-# src/core/sound_manager.py
 """
-Sound Manager for playing music and sound effects
+Sound management system
 """
 
 import arcade
@@ -11,39 +10,24 @@ class SoundManager:
     """Manages all game audio"""
     
     def __init__(self):
-        self.music_volume = 0.8
-        self.sfx_volume = 1.0
         self.master_volume = 1.0
+        self.sfx_volume = 1.0
+        self.music_volume = 0.8
         
         self.current_music = None
         self.music_player = None
         
         # Sound cache
         self.sounds: Dict[str, arcade.Sound] = {}
-        self.music_tracks: Dict[str, str] = {}
         
-        # Audio paths
-        self.sfx_path = "assets/sounds/sfx"
-        self.music_path = "assets/sounds/music"
-        
-        # Load default sound mappings
-        self._setup_sound_mappings()
-        
-    def _setup_sound_mappings(self):
-        """Setup default sound file mappings"""
-        # SFX mappings
-        self.sfx_mappings = {
+        # Sound mappings (placeholder files)
+        self.sound_mappings = {
             "collect_health": "collect_health.wav",
-            "collect_coin": "collect_coin.wav",
+            "collect_coin": "collect_coin.wav", 
             "collect_powerup": "collect_powerup.wav",
             "dash_attack": "dash_attack.wav",
             "air_dash": "air_dash.wav",
             "quick_strike": "quick_strike.wav",
-            "shadow_strike": "shadow_strike.wav",
-            "buff_activate": "buff_activate.wav",
-            "vision_activate": "vision_activate.wav",
-            "decoy_create": "decoy_create.wav",
-            "smoke_bomb": "smoke_bomb.wav",
             "game_over": "game_over.wav",
             "victory": "victory.wav",
             "jump": "jump.wav",
@@ -60,7 +44,6 @@ class SoundManager:
         self.music_mappings = {
             "menu_theme": "menu_theme.ogg",
             "battle_theme": "battle_theme.ogg",
-            "battle_theme_1": "battle_theme_1.ogg",
             "escape_theme": "escape_theme.ogg",
             "boss_theme": "boss_theme.ogg",
             "victory_theme": "victory_theme.ogg"
@@ -85,19 +68,27 @@ class SoundManager:
         if sound_name in self.sounds:
             return True
             
-        # Try to find the sound file
-        filename = self.sfx_mappings.get(sound_name, f"{sound_name}.wav")
-        filepath = os.path.join(self.sfx_path, filename)
+        # Try to find sound file
+        filename = self.sound_mappings.get(sound_name, f"{sound_name}.wav")
         
-        if os.path.exists(filepath):
-            try:
-                self.sounds[sound_name] = arcade.load_sound(filepath)
-                return True
-            except Exception as e:
-                print(f"Error loading sound {filepath}: {e}")
-                
-        # Create a placeholder silent sound if file doesn't exist
-        print(f"Sound file not found: {filepath}, using placeholder")
+        # Check common sound directories
+        search_paths = [
+            f"assets/sounds/sfx/{filename}",
+            f"assets/sounds/{filename}",
+            f"sounds/{filename}",
+            filename
+        ]
+        
+        for filepath in search_paths:
+            if os.path.exists(filepath):
+                try:
+                    self.sounds[sound_name] = arcade.load_sound(filepath)
+                    return True
+                except Exception as e:
+                    print(f"Error loading sound {filepath}: {e}")
+                    
+        # Create placeholder sound (silent)
+        print(f"Sound file not found: {filename} - using placeholder")
         return False
         
     def play_sfx(self, sound_name: str, volume: float = 1.0):
@@ -116,27 +107,34 @@ class SoundManager:
     def play_music(self, track_name: str, loop: bool = True, volume: float = 1.0):
         """Play background music"""
         if track_name == self.current_music:
-            return  # Already playing this track
+            return  # Already playing
             
         # Stop current music
         self.stop_music()
         
-        # Try to find the music file
+        # Try to find music file
         filename = self.music_mappings.get(track_name, f"{track_name}.ogg")
-        filepath = os.path.join(self.music_path, filename)
         
-        if os.path.exists(filepath):
-            try:
-                music = arcade.load_sound(filepath)
-                final_volume = volume * self.music_volume * self.master_volume
-                self.music_player = arcade.play_sound(music, final_volume, looping=loop)
-                self.current_music = track_name
-                print(f"Playing music: {track_name}")
-            except Exception as e:
-                print(f"Error playing music {filepath}: {e}")
-        else:
-            print(f"Music file not found: {filepath}")
-            
+        search_paths = [
+            f"assets/sounds/music/{filename}",
+            f"assets/sounds/{filename}",
+            f"music/{filename}",
+            filename
+        ]
+        
+        for filepath in search_paths:
+            if os.path.exists(filepath):
+                try:
+                    music = arcade.load_sound(filepath)
+                    final_volume = volume * self.music_volume * self.master_volume
+                    self.music_player = arcade.play_sound(music, final_volume, looping=loop)
+                    self.current_music = track_name
+                    return
+                except Exception as e:
+                    print(f"Error playing music {filepath}: {e}")
+                    
+        print(f"Music file not found: {filename}")
+        
     def stop_music(self):
         """Stop current music"""
         if self.music_player:
@@ -167,15 +165,7 @@ class SoundManager:
         """Check if music is currently playing"""
         return self.music_player is not None and self.current_music is not None
         
-    def preload_sounds(self, sound_list: list):
-        """Preload a list of sounds"""
-        for sound_name in sound_list:
-            self.load_sound(sound_name)
-            
     def cleanup(self):
         """Clean up audio resources"""
         self.stop_music()
         self.sounds.clear()
-
-# Global sound manager instance
-sound_manager = SoundManager()

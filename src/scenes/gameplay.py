@@ -1,6 +1,5 @@
-# src/scenes/gameplay.py - Fixed for Arcade 3.0
 """
-Enhanced gameplay scene with sound and particle effects - Fixed for Arcade 3.0
+Main gameplay scene for Heaven Burns Red
 """
 
 import arcade
@@ -8,45 +7,13 @@ import random
 from src.core.director import Scene
 from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 from src.entities.player import Player
-from src.entities.enemies.cancer_base import CancerEnemy
-from src.ui.hud import HUD
+from src.entities.enemy import CancerEnemy, EnemySpawner
 from src.data.squad_data import get_character_data
-
-def create_solid_color_sprite(width, height, color):
-    """Create a solid color sprite using Arcade 3.0 methods"""
-    try:
-        # Method 1: Try Texture.create_filled (3.0 method)
-        texture = arcade.Texture.create_filled(f"solid_{color}", (width, height), color)
-        sprite = arcade.Sprite()
-        sprite.texture = texture
-        return sprite
-    except Exception:
-        pass
-    
-    try:
-        # Method 2: Try creating with PIL if available
-        from PIL import Image
-        image = Image.new('RGBA', (width, height), color + (255,))
-        texture = arcade.Texture(f"solid_{color}_pil", image)
-        sprite = arcade.Sprite()
-        sprite.texture = texture
-        return sprite
-    except Exception:
-        pass
-    
-    try:
-        # Method 3: Use basic sprite with default texture
-        sprite = arcade.Sprite()
-        # Set size properties
-        sprite.width = width
-        sprite.height = height
-        return sprite
-    except Exception as e:
-        print(f"Failed to create solid color sprite: {e}")
-        return arcade.Sprite()
+from src.ui.hud import HUD
 
 class GameplayScene(Scene):
-    """Main gameplay scene with all enhancements - Arcade 3.0 Compatible"""
+    """Main gameplay scene"""
+    
     def __init__(self, director, input_manager):
         super().__init__(director)
         self.input_manager = input_manager
@@ -54,6 +21,9 @@ class GameplayScene(Scene):
         # Get systems
         self.gravity_manager = director.get_system('gravity_manager')
         self.save_manager = director.get_system('save_manager')
+        self.sound_manager = director.get_system('sound_manager')
+        self.particle_manager = director.get_system('particle_manager')
+        self.asset_manager = director.get_system('asset_manager')
         
         # Sprite lists
         self.player_list = arcade.SpriteList()
@@ -61,58 +31,39 @@ class GameplayScene(Scene):
         self.platform_list = arcade.SpriteList()
         self.item_list = arcade.SpriteList()
         
-        # Player
+        # Game objects
         self.player = None
+        self.hud = None
+        self.enemy_spawner = EnemySpawner()
         
-        # Game state
-        self.score = 0
-        self.current_level = 1
-        self.game_over = False
-        self.victory = False
-        
-        # Camera - Arcade 3.0 Style
+        # Cameras
         self.camera = None
         self.gui_camera = None
         
-        # HUD
-        self.hud = None
+        # Game state
+        self.current_level = 1
+        self.score = 0
+        self.game_over = False
+        self.victory = False
+        self.level_timer = 0
+        self.spawn_timer = 0
         
-        # Multiplayer
-        self.is_multiplayer = director.get_system('is_multiplayer')
-        self.other_players = {}
-        
-        # Managers (with fallbacks)
-        try:
-            from src.core.sound_manager import sound_manager
-            self.sound_manager = sound_manager
-        except:
-            self.sound_manager = None
-            
-        try:
-            from src.effects.particle_system import particle_manager
-            self.particle_manager = particle_manager
-        except:
-            self.particle_manager = None
+        # Level progression
+        self.enemies_defeated = 0
+        self.enemies_per_wave = 5
+        self.current_wave = 1
         
     def on_enter(self):
         """Setup gameplay scene"""
-        # Create cameras - Arcade 3.0 Style
-        try:
-            # Use standard Arcade 3.0 Camera
-            self.camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
-            self.gui_camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
-            print("✓ Using Arcade 3.0 Camera")
-        except Exception as e:
-            print(f"✗ Camera creation failed: {e}")
-            # Create dummy camera object
-            self.camera = type('DummyCamera', (), {'use': lambda: None})()
-            self.gui_camera = type('DummyCamera', (), {'use': lambda: None})()
+        # Create cameras
+        self.camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.gui_camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
         
-        # Clear any existing particle effects
+        # Clear particle effects
         if self.particle_manager:
             self.particle_manager.clear()
-        
-        # Create player with selected character
+            
+        # Create player
         character_data = self._get_selected_character()
         self.player = Player(character_data, self.input_manager)
         self.player.center_x = 200
@@ -123,53 +74,48 @@ class GameplayScene(Scene):
         self.hud = HUD(self.player)
         
         # Load level
-        self.load_level(self.current_level)
+        self.load_level()
+        
+        # Setup enemy spawner
+        self.setup_enemy_spawns()
         
         # Spawn initial enemies
-        self.spawn_enemies()
+        self.spawn_initial_enemies()
         
-        # Play battle music
+        # Start background music
         if self.sound_manager:
             self.sound_manager.play_music("battle_theme")
-        
-        print(f"Gameplay started with character: {character_data['name']}")
+            
+        print(f"Gameplay started with {character_data['name']}")
         
     def on_exit(self):
         """Cleanup when leaving gameplay"""
-        # Stop music
         if self.sound_manager:
             self.sound_manager.stop_music()
-        
-        # Clear particles
         if self.particle_manager:
             self.particle_manager.clear()
-        
+            
     def on_pause(self):
         """Pause gameplay"""
         if self.sound_manager:
             self.sound_manager.pause_music()
-        
+            
     def on_resume(self):
         """Resume gameplay"""
         if self.sound_manager:
             self.sound_manager.resume_music()
-        
+            
     def _get_selected_character(self) -> dict:
-        """Get selected character data from save or default"""
+        """Get selected character data"""
         if self.save_manager and self.save_manager.current_save:
-            # Get from save data
             squad_id = self.save_manager.current_save.game_data.get('selected_squad', '31A')
             char_id = self.save_manager.current_save.game_data.get('selected_character', 'ruka')
             
-            # Get character data from squad data
             character = get_character_data(squad_id, char_id)
             if character:
-                # Add the character ID if not present
-                if 'id' not in character:
-                    character['id'] = char_id
                 return character
                 
-        # Default to Ruka if nothing selected
+        # Default fallback
         return {
             'id': 'ruka',
             'name': 'Ruka Kayamori',
@@ -180,84 +126,76 @@ class GameplayScene(Scene):
             'defense': 6,
             'abilities': ['Double Jump', 'Dash Attack', 'Leadership Boost']
         }
-            
-    def load_level(self, level_num: int):
-        """Load level data using proper Arcade 3.0 sprite creation"""
-        # Create platforms using proper Arcade 3.0 methods
-        platform_color = arcade.color.DARK_GRAY
         
-        # Ground platforms
+    def load_level(self):
+        """Load level platforms and environment"""
+        # Create ground platforms
         for x in range(0, 2000, 200):
-            platform = create_solid_color_sprite(200, 20, platform_color)
-            platform.center_x = x
+            platform = self.asset_manager.create_sprite("platform")
+            platform.center_x = x + 100
             platform.center_y = 50
             self.platform_list.append(platform)
             
-        # Elevated platforms with variety
+        # Create elevated platforms
         platform_configs = [
-            # (x, y, width, height)
-            (400, 200, 150, 20),
-            (800, 300, 150, 20),
-            (1200, 250, 150, 20),
-            (1600, 350, 150, 20),
-            # Some vertical platforms
-            (600, 150, 20, 100),
-            (1000, 200, 20, 150),
+            # (x, y, width_multiplier)
+            (400, 200, 1),
+            (700, 150, 1),
+            (1000, 250, 1),
+            (1300, 200, 1),
+            (1600, 300, 1),
+            (1900, 180, 1),
+            
             # Floating platforms
-            (500, 400, 100, 20),
-            (900, 450, 100, 20),
-            (1300, 400, 100, 20),
+            (500, 350, 0.5),
+            (800, 400, 0.5),
+            (1100, 450, 0.5),
+            (1400, 380, 0.5),
+            
+            # Vertical platforms (walls)
+            (600, 120, 0.3),
+            (1200, 150, 0.3),
         ]
         
-        for x, y, width, height in platform_configs:
-            platform = create_solid_color_sprite(width, height, platform_color)
+        for x, y, scale in platform_configs:
+            platform = self.asset_manager.create_sprite("platform")
             platform.center_x = x
             platform.center_y = y
+            platform.scale = scale
             self.platform_list.append(platform)
             
-    def spawn_enemies(self):
-        """Spawn enemies in level"""
-        enemy_configs = [
-            # (x, y, size)
-            (600, 150, 'small'),
-            (1000, 150, 'small'),
-            (1400, 300, 'medium'),
-            (800, 400, 'small'),
-            (1200, 400, 'medium'),
-            (1800, 150, 'large'),
+    def setup_enemy_spawns(self):
+        """Setup enemy spawn points"""
+        spawn_points = [
+            (600, 200, "basic", "small"),
+            (1000, 200, "basic", "small"),
+            (1400, 200, "basic", "medium"),
+            (800, 300, "basic", "small"),
+            (1200, 300, "basic", "medium"),
+            (1600, 200, "basic", "large"),
         ]
         
-        for x, y, size in enemy_configs:
-            enemy = CancerEnemy('basic', size)
-            enemy.center_x = x
-            enemy.center_y = y
+        for x, y, enemy_type, size in spawn_points:
+            self.enemy_spawner.add_spawn_point(x, y, enemy_type, size)
             
-            # Create a simple colored texture for enemy using new system
-            enemy_colors = {
-                'small': arcade.color.DARK_RED,
-                'medium': arcade.color.DARK_ORANGE,
-                'large': arcade.color.DARK_VIOLET
-            }
-            
-            # Use the new sprite creation system
-            try:
-                enemy_sprite = create_solid_color_sprite(
-                    int(64 * enemy.scale), 
-                    int(64 * enemy.scale), 
-                    enemy_colors.get(size, arcade.color.DARK_RED)
-                )
-                enemy.texture = enemy_sprite.texture
-            except Exception as e:
-                print(f"Error creating enemy texture: {e}")
-                # Continue without texture - enemy will still function
-            
-            self.enemy_list.append(enemy)
-            
+    def spawn_initial_enemies(self):
+        """Spawn initial wave of enemies"""
+        initial_wave = [
+            {'x': 600, 'y': 200, 'type': 'basic', 'size': 'small'},
+            {'x': 1000, 'y': 200, 'type': 'basic', 'size': 'small'},
+            {'x': 1400, 'y': 200, 'type': 'basic', 'size': 'medium'},
+        ]
+        
+        self.enemy_spawner.spawn_wave(self.enemy_list, initial_wave)
+        
     def update(self, delta_time: float):
         """Update gameplay"""
         if self.game_over:
             return
             
+        # Update level timer
+        self.level_timer += delta_time
+        
         # Update player
         self.player.update(delta_time, self.gravity_manager, self.platform_list)
         
@@ -265,184 +203,220 @@ class GameplayScene(Scene):
         for enemy in self.enemy_list:
             enemy.update(delta_time, self.player_list, self.gravity_manager)
             
+        # Update enemy spawner
+        self.enemy_spawner.update(delta_time, self.enemy_list)
+        
         # Check player-enemy collisions
-        hit_enemies = arcade.check_for_collision_with_list(self.player, self.enemy_list)
-        for enemy in hit_enemies:
-            if self.player.is_attacking:
-                # Calculate damage and hit enemy
-                damage = self.player.on_enemy_hit(enemy)
-                enemy.take_damage(damage)
-                
-                # Update score based on combo
-                base_score = 10 * enemy.scale
-                combo_bonus = self.player.attack_combo * 5
-                self.score += base_score + combo_bonus
-                self.hud.score = self.score
-                
-                # Create hit effect
-                if self.particle_manager:
-                    self.particle_manager.create_effect('impact', enemy.center_x, enemy.center_y)
-            else:
-                # Enemy damages player
-                self.player.take_damage(enemy.damage)
-                
+        self.check_combat_collisions()
+        
         # Update particle effects
         if self.particle_manager:
             self.particle_manager.update(delta_time)
-        
+            
         # Update HUD
         if self.hud:
             self.hud.update(delta_time)
-        
-        # Update camera to follow player
-        self.center_camera_on_player()
+            
+        # Update camera
+        self.update_camera()
         
         # Check win/lose conditions
+        self.check_game_conditions()
+        
+    def check_combat_collisions(self):
+        """Check player-enemy combat collisions"""
+        hit_enemies = arcade.check_for_collision_with_list(self.player, self.enemy_list)
+        
+        for enemy in hit_enemies:
+            if self.player.is_attacking:
+                # Player hits enemy
+                damage = self.player.get_attack_damage()
+                enemy.take_damage(damage)
+                
+                # Add score based on enemy and combo
+                base_score = enemy.score_value
+                combo_bonus = self.player.attack_combo * 5
+                score_gained = base_score + combo_bonus
+                
+                self.player.add_score(score_gained)
+                self.score += score_gained
+                if self.hud:
+                    self.hud.score = self.score
+                    
+                # Check if enemy died
+                if enemy.health <= 0:
+                    self.enemies_defeated += 1
+                    
+                    # Create death effect
+                    if self.particle_manager:
+                        self.particle_manager.create_effect('explosion', enemy.center_x, enemy.center_y)
+                        
+            else:
+                # Enemy hits player (if not invulnerable)
+                if not self.player.invulnerable:
+                    self.player.take_damage(enemy.damage)
+                    
+                    # Knockback effect
+                    direction = 1 if enemy.center_x < self.player.center_x else -1
+                    self.player.velocity[0] += direction * 5
+                    
+    def update_camera(self):
+        """Update camera to follow player"""
+        # Calculate camera position centered on player
+        camera_x = self.player.center_x - SCREEN_WIDTH // 2
+        camera_y = self.player.center_y - SCREEN_HEIGHT // 2
+        
+        # Clamp camera to level bounds
+        camera_x = max(0, min(camera_x, 2000 - SCREEN_WIDTH))
+        camera_y = max(0, camera_y)
+        
+        # Apply camera position
+        self.camera.move_to((camera_x, camera_y))
+        
+    def check_game_conditions(self):
+        """Check for win/lose conditions"""
+        # Check player death
         if self.player.health <= 0:
             self.game_over = True
             if self.sound_manager:
                 self.sound_manager.stop_music()
                 self.sound_manager.play_sfx("game_over")
-            print("Game Over!")
-            # Return to main menu after delay
-            try:
-                arcade.schedule(lambda dt: self.director.change_scene('main_menu'), 3.0)
-            except:
-                # Fallback if schedule doesn't work
-                import threading
-                threading.Timer(3.0, lambda: self.director.change_scene('main_menu')).start()
-            
-        # Check if all enemies defeated
-        if len(self.enemy_list) == 0 and not self.victory:
-            self.victory = True
-            if self.sound_manager:
-                self.sound_manager.play_sfx("victory")
-            print(f"Level {self.current_level} Complete!")
-            self.current_level += 1
-            
-            # Create victory effects
-            if self.particle_manager:
-                for _ in range(5):
-                    x = self.player.center_x + random.randint(-100, 100)
-                    y = self.player.center_y + random.randint(-50, 100)
-                    self.particle_manager.create_effect('sparkle', x, y)
                 
-            # Spawn more enemies after a delay (for now)
-            try:
-                arcade.schedule(self.spawn_next_wave, 3.0)
-            except:
-                # Fallback
-                import threading
-                threading.Timer(3.0, self.spawn_next_wave).start()
-            
-    def spawn_next_wave(self, delta_time=None):
-        """Spawn next wave of enemies"""
-        try:
-            arcade.unschedule(self.spawn_next_wave)
-        except:
-            pass
-        self.victory = False
-        self.spawn_enemies()
-            
-    def center_camera_on_player(self):
-        """Center camera on player with bounds - Arcade 3.0 Style"""
-        if not self.camera or not hasattr(self.camera, 'move_to'):
+            # Return to main menu after delay
+            arcade.schedule(lambda dt: self.director.change_scene('main_menu'), 3.0)
             return
             
-        try:
-            # Calculate camera position
-            camera_x = self.player.center_x - SCREEN_WIDTH // 2
-            camera_y = self.player.center_y - SCREEN_HEIGHT // 2
+        # Check wave completion
+        if len(self.enemy_list) == 0 and not self.victory:
+            self.complete_wave()
             
-            # Don't let camera go too far negative
-            camera_x = max(camera_x, 0)
-            camera_y = max(camera_y, 0)
+        # Check fall death
+        if self.player.center_y < -100:
+            self.player.take_damage(self.player.health)
             
-            # Update camera position using Arcade 3.0 method
-            self.camera.move_to((camera_x, camera_y))
-        except Exception as e:
-            print(f"Camera update error: {e}")
+    def complete_wave(self):
+        """Complete current wave and spawn next"""
+        self.victory = True
+        self.current_wave += 1
         
-    def draw(self):
-        """Draw gameplay - Arcade 3.0 Style"""
-        try:
-            # Use game camera
-            self.camera.use()
+        if self.sound_manager:
+            self.sound_manager.play_sfx("victory")
             
-            # Draw game world using sprite lists
-            self.platform_list.draw()
-            self.enemy_list.draw()
-            self.player_list.draw()
-            self.item_list.draw()
-            
-            # Draw particle effects
-            if self.particle_manager:
-                self.particle_manager.draw()
+        # Create victory effects
+        if self.particle_manager:
+            for _ in range(5):
+                x = self.player.center_x + random.randint(-100, 100)
+                y = self.player.center_y + random.randint(-50, 100)
+                self.particle_manager.create_effect('sparkle', x, y)
                 
-        except Exception as e:
-            print(f"Game camera draw error: {e}")
-            # Fallback drawing without camera
-            try:
-                self.platform_list.draw()
-                self.enemy_list.draw()
-                self.player_list.draw()
-                self.item_list.draw()
-            except Exception as e2:
-                print(f"Fallback draw error: {e2}")
+        # Spawn next wave after delay
+        arcade.schedule(self.spawn_next_wave, 3.0)
         
-        try:
-            # Use GUI camera for HUD
-            self.gui_camera.use()
-            if self.hud:
-                self.hud.draw()
-                
-        except Exception as e:
-            print(f"GUI camera draw error: {e}")
-            # Fallback HUD drawing without camera
-            try:
-                if self.hud:
-                    self.hud.draw()
-            except Exception as e2:
-                print(f"Fallback HUD draw error: {e2}")
+    def spawn_next_wave(self, delta_time=None):
+        """Spawn next wave of enemies"""
+        arcade.unschedule(self.spawn_next_wave)
+        self.victory = False
         
-        try:
-            # Draw debug info using direct arcade calls
-            arcade.draw_text(
-                f"Character: {self.player.character_data['name']}",
-                10, SCREEN_HEIGHT - 80,
-                arcade.color.WHITE,
-                14
-            )
-            
-            # Draw combo indicator
-            if self.player.attack_combo > 0:
-                combo_text = f"COMBO x{self.player.attack_combo}"
-                arcade.draw_text(
-                    combo_text,
-                    SCREEN_WIDTH // 2,
-                    SCREEN_HEIGHT - 100,
-                    arcade.color.YELLOW,
-                    24,
-                    anchor_x="center"
-                )
-        except Exception as e:
-            print(f"Debug info draw error: {e}")
+        # Increase difficulty
+        wave_configs = {
+            2: [
+                {'x': 500, 'y': 200, 'type': 'basic', 'size': 'small'},
+                {'x': 800, 'y': 200, 'type': 'basic', 'size': 'medium'},
+                {'x': 1100, 'y': 200, 'type': 'basic', 'size': 'small'},
+                {'x': 1400, 'y': 200, 'type': 'basic', 'size': 'medium'},
+            ],
+            3: [
+                {'x': 400, 'y': 200, 'type': 'basic', 'size': 'medium'},
+                {'x': 700, 'y': 200, 'type': 'basic', 'size': 'small'},
+                {'x': 1000, 'y': 200, 'type': 'basic', 'size': 'large'},
+                {'x': 1300, 'y': 200, 'type': 'basic', 'size': 'medium'},
+                {'x': 1600, 'y': 200, 'type': 'basic', 'size': 'small'},
+            ],
+            4: [
+                {'x': 600, 'y': 200, 'type': 'basic', 'size': 'large'},
+                {'x': 1200, 'y': 200, 'type': 'basic', 'size': 'boss'},
+            ]
+        }
+        
+        wave_config = wave_configs.get(self.current_wave, wave_configs[4])
+        self.enemy_spawner.spawn_wave(self.enemy_list, wave_config)
         
     def on_key_press(self, key, modifiers):
         """Handle key press"""
         if key == arcade.key.ESCAPE:
             self.director.push_scene('pause')
             
-        # Debug: Test particle effects with number keys 6-9
-        elif key == arcade.key.KEY_6 and self.particle_manager:
-            self.particle_manager.create_effect('impact', self.player.center_x, self.player.center_y)
-            print("Impact effect")
-        elif key == arcade.key.KEY_7 and self.particle_manager:
-            self.particle_manager.create_effect('flame', self.player.center_x, self.player.center_y)
-            print("Flame effect")
-        elif key == arcade.key.KEY_8 and self.particle_manager:
-            self.particle_manager.create_effect('healing', self.player.center_x, self.player.center_y)
-            print("Healing effect")
-        elif key == arcade.key.KEY_9 and self.particle_manager:
-            self.particle_manager.create_effect('sparkle', self.player.center_x, self.player.center_y)
-            print("Sparkle effect")
+    def draw(self):
+        """Draw gameplay scene"""
+        # Use game camera
+        self.camera.use()
+        
+        # Draw game world
+        self.platform_list.draw()
+        self.enemy_list.draw()
+        self.player_list.draw()
+        self.item_list.draw()
+        
+        # Draw particle effects
+        if self.particle_manager:
+            self.particle_manager.draw()
+            
+        # Use GUI camera for HUD
+        self.gui_camera.use()
+        
+        # Draw HUD
+        if self.hud:
+            self.hud.draw()
+            
+        # Draw game state indicators
+        self.draw_game_info()
+        
+    def draw_game_info(self):
+        """Draw additional game information"""
+        # Wave indicator
+        arcade.draw_text(
+            f"Wave {self.current_wave}",
+            10, SCREEN_HEIGHT - 30,
+            arcade.color.WHITE,
+            16
+        )
+        
+        # Enemy counter
+        arcade.draw_text(
+            f"Enemies: {len(self.enemy_list)}",
+            10, SCREEN_HEIGHT - 60,
+            arcade.color.WHITE,
+            14
+        )
+        
+        # Level timer
+        minutes = int(self.level_timer // 60)
+        seconds = int(self.level_timer % 60)
+        arcade.draw_text(
+            f"Time: {minutes:02d}:{seconds:02d}",
+            10, SCREEN_HEIGHT - 90,
+            arcade.color.WHITE,
+            14
+        )
+        
+        # Victory/Game Over messages
+        if self.victory:
+            arcade.draw_text(
+                f"Wave {self.current_wave - 1} Complete!",
+                SCREEN_WIDTH // 2,
+                SCREEN_HEIGHT // 2,
+                arcade.color.YELLOW,
+                32,
+                anchor_x="center",
+                anchor_y="center"
+            )
+        elif self.game_over:
+            arcade.draw_text(
+                "GAME OVER",
+                SCREEN_WIDTH // 2,
+                SCREEN_HEIGHT // 2,
+                arcade.color.RED,
+                48,
+                anchor_x="center",
+                anchor_y="center"
+            )

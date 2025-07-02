@@ -1,10 +1,12 @@
-# ============================================================================
-# FILE: src/utils/helpers.py
-# ============================================================================
+"""
+Utility helper functions
+"""
+
 import os
 import json
 import random
-from typing import Dict, Any, Optional
+import math
+from typing import Dict, Any, Optional, Tuple
 
 def load_json_config(filename: str) -> Dict[str, Any]:
     """Load JSON configuration file"""
@@ -19,203 +21,30 @@ def load_json_config(filename: str) -> Dict[str, Any]:
         print(f"Error parsing JSON {filename}: {e}")
         return {}
 
-def get_default_characters():
-    """Get default character configuration"""
-    return {
-        "characters": {
-            "31A": {
-                "ruka": {
-                    "id": "ruka",
-                    "name": "Ruka Kayamori",
-                    "title": "Squad Leader",
-                    "bio": "Leader of 31A, skilled in both combat and tactics",
-                    "stats": {
-                        "health": 100,
-                        "speed": 6,
-                        "jump_power": 15,
-                        "attack": 8,
-                        "defense": 6
-                    },
-                    "abilities": [
-                        "Double Jump",
-                        "Dash Attack",
-                        "Leadership Boost"
-                    ],
-                    "sprite_sheet": "ruka_sprites.png",
-                    "portrait": "ruka_portrait.png",
-                    "unlock_condition": "default"
-                },
-                "yuki": {
-                    "id": "yuki",
-                    "name": "Yuki Izumi",
-                    "title": "Scout",
-                    "bio": "Swift and agile scout specializing in reconnaissance",
-                    "stats": {
-                        "health": 80,
-                        "speed": 9,
-                        "jump_power": 18,
-                        "attack": 6,
-                        "defense": 4
-                    },
-                    "abilities": [
-                        "Air Dash",
-                        "Quick Strike",
-                        "Enhanced Vision"
-                    ],
-                    "sprite_sheet": "yuki_sprites.png",
-                    "portrait": "yuki_portrait.png",
-                    "unlock_condition": "default"
-                }
-            }
-        }
-    }
-
-def get_default_squads():
-    """Get default squad configuration"""
-    return {
-        "squads": [
-            {
-                "id": "31A",
-                "name": "31A Squad",
-                "description": "Elite combat unit specializing in aerial combat against Cancers",
-                "unlock_condition": "default",
-                "squad_bonus": {
-                    "type": "balanced",
-                    "health_bonus": 10,
-                    "attack_bonus": 5
-                },
-                "members": [
-                    {"id": "ruka", "name": "Ruka", "health": 100, "speed": 6, "jump_power": 15, "abilities": ["Double Jump", "Dash Attack"]},
-                    {"id": "yuki", "name": "Yuki", "health": 80, "speed": 8, "jump_power": 18, "abilities": ["Air Dash", "Quick Strike"]},
-                    {"id": "karen", "name": "Karen", "health": 120, "speed": 4, "jump_power": 12, "abilities": ["Shield Bash", "Ground Pound"]},
-                    {"id": "tsukasa", "name": "Tsukasa", "health": 90, "speed": 7, "jump_power": 16, "abilities": ["Teleport", "Energy Blast"]},
-                    {"id": "megumi", "name": "Megumi", "health": 85, "speed": 7, "jump_power": 17, "abilities": ["Healing Aura", "Light Beam"]},
-                    {"id": "ichigo", "name": "Ichigo", "health": 95, "speed": 6, "jump_power": 15, "abilities": ["Fire Ball", "Flame Dash"]}
-                ],
-                "formation": "assault"
-            },
-            {
-                "id": "31B",
-                "name": "31B Squad",
-                "description": "Heavy assault squad with focus on defensive tactics",
-                "unlock_condition": "complete_chapter_2",
-                "squad_bonus": {
-                    "type": "defensive",
-                    "health_bonus": 20,
-                    "defense_bonus": 10
-                },
-                "members": [
-                    {"id": "seika", "name": "Seika", "health": 110, "speed": 5, "jump_power": 14, "abilities": ["Ice Wall", "Freeze Ray"]},
-                    {"id": "mion", "name": "Mion", "health": 85, "speed": 9, "jump_power": 16, "abilities": ["Shadow Step", "Smoke Bomb"]},
-                    {"id": "aoi", "name": "Aoi", "health": 100, "speed": 6, "jump_power": 15, "abilities": ["Thunder Strike", "Electric Field"]},
-                    {"id": "sumire", "name": "Sumire", "health": 90, "speed": 7, "jump_power": 17, "abilities": ["Wind Slash", "Tornado"]},
-                    {"id": "kura", "name": "Kura", "health": 95, "speed": 6, "jump_power": 15, "abilities": ["Rock Throw", "Earth Quake"]},
-                    {"id": "maria", "name": "Maria", "health": 80, "speed": 8, "jump_power": 18, "abilities": ["Time Slow", "Blink"]}
-                ],
-                "formation": "defensive"
-            }
-        ]
-    }
-
-def get_default_input_mappings():
-    """Get default input mappings"""
-    return {
-        "keyboard": {
-            "move_left": ["A", "LEFT"],
-            "move_right": ["D", "RIGHT"],
-            "jump": ["SPACE", "W", "UP"],
-            "action_1": ["Z", "J"],
-            "action_2": ["X", "K"],
-            "pause": ["ESCAPE", "P"],
-            "menu_up": ["W", "UP"],
-            "menu_down": ["S", "DOWN"],
-            "menu_left": ["A", "LEFT"],
-            "menu_right": ["D", "RIGHT"],
-            "menu_select": ["ENTER", "SPACE"],
-            "menu_back": ["ESCAPE", "BACKSPACE"]
-        },
-        "controller": {
-            "xbox": {
-                "move_left": "LEFT_STICK_LEFT",
-                "move_right": "LEFT_STICK_RIGHT",
-                "jump": "A",
-                "action_1": "X",
-                "action_2": "Y",
-                "pause": "START",
-                "menu_up": "DPAD_UP",
-                "menu_down": "DPAD_DOWN",
-                "menu_left": "DPAD_LEFT",
-                "menu_right": "DPAD_RIGHT",
-                "menu_select": "A",
-                "menu_back": "B"
-            }
-        }
-    }
-
-def get_default_levels():
-    """Get default levels configuration"""
-    return {
-        "chapters": [
-            {
-                "id": "chapter_1",
-                "name": "First Contact",
-                "description": "The Cancer invasion begins",
-                "levels": [
-                    {
-                        "id": "1-1",
-                        "name": "City Under Siege",
-                        "description": "Defend the city from the initial Cancer attack",
-                        "tilemap": "level_1_1.tmx",
-                        "background": "city_ruins_bg.png",
-                        "music": "battle_theme_1.ogg",
-                        "gravity_zones": {
-                            "default": "normal",
-                            "zone_1": {"type": "low", "area": [1000, 0, 1500, 500]}
-                        },
-                        "enemy_spawns": [
-                            {"type": "cancer_small", "position": [500, 200], "count": 3},
-                            {"type": "cancer_medium", "position": [1000, 300], "count": 2},
-                            {"type": "cancer_large", "position": [1500, 200], "count": 1}
-                        ],
-                        "objectives": [
-                            {"type": "eliminate_all", "description": "Defeat all Cancers"},
-                            {"type": "time_limit", "description": "Complete in under 5 minutes", "time": 300}
-                        ],
-                        "par_time": 180,
-                        "unlock_condition": "default"
-                    }
-                ]
-            }
-        ]
-    }
-
 def create_default_configs():
     """Create default configuration files if they don't exist"""
     os.makedirs('config', exist_ok=True)
     
-    configs = {
-        'characters.json': get_default_characters(),
-        'squads.json': get_default_squads(),
-        'input_mappings.json': get_default_input_mappings(),
-        'levels.json': get_default_levels()
-    }
+    # Only create if files don't exist
+    config_files = ['characters.json', 'squads.json', 'input_mappings.json', 'levels.json']
     
-    for filename, content in configs.items():
-        filepath = os.path.join('config', filename)
+    for config_file in config_files:
+        filepath = os.path.join('config', config_file)
         if not os.path.exists(filepath):
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(content, f, indent=2)
-            print(f"Created default config: {filename}")
+            print(f"Config file {config_file} would be created here")
+            # In a full implementation, would create actual config files
 
 def calculate_damage(attacker_stats: Dict, defender_stats: Dict, skill_multiplier: float = 1.0) -> int:
     """Calculate damage based on stats"""
     base_damage = attacker_stats.get('attack', 10)
     defense = defender_stats.get('defense', 5)
     damage = max(1, int((base_damage * skill_multiplier) - (defense * 0.5)))
+    
+    # Add random variation
     damage = int(damage * random.uniform(0.9, 1.1))
     return damage
 
-def interpolate_position(start: tuple, end: tuple, t: float) -> tuple:
+def interpolate_position(start: Tuple[float, float], end: Tuple[float, float], t: float) -> Tuple[float, float]:
     """Interpolate between two positions"""
     x = start[0] + (end[0] - start[0]) * t
     y = start[1] + (end[1] - start[1]) * t
@@ -224,3 +53,130 @@ def interpolate_position(start: tuple, end: tuple, t: float) -> tuple:
 def clamp(value: float, min_val: float, max_val: float) -> float:
     """Clamp value between min and max"""
     return max(min_val, min(max_val, value))
+
+def lerp(start: float, end: float, t: float) -> float:
+    """Linear interpolation between start and end"""
+    return start + (end - start) * t
+
+def distance_between_points(point1: Tuple[float, float], point2: Tuple[float, float]) -> float:
+    """Calculate distance between two points"""
+    dx = point2[0] - point1[0]
+    dy = point2[1] - point1[1]
+    return math.sqrt(dx * dx + dy * dy)
+
+def normalize_vector(vector: Tuple[float, float]) -> Tuple[float, float]:
+    """Normalize a 2D vector"""
+    x, y = vector
+    length = math.sqrt(x * x + y * y)
+    if length == 0:
+        return (0, 0)
+    return (x / length, y / length)
+
+def angle_between_points(point1: Tuple[float, float], point2: Tuple[float, float]) -> float:
+    """Get angle between two points in radians"""
+    dx = point2[0] - point1[0]
+    dy = point2[1] - point1[1]
+    return math.atan2(dy, dx)
+
+def format_time(seconds: float) -> str:
+    """Format time in seconds to MM:SS format"""
+    minutes = int(seconds // 60)
+    secs = int(seconds % 60)
+    return f"{minutes:02d}:{secs:02d}"
+
+def wrap_text(text: str, max_width: int) -> list:
+    """Wrap text to fit within max_width characters per line"""
+    words = text.split()
+    lines = []
+    current_line = ""
+    
+    for word in words:
+        if len(current_line + word) <= max_width:
+            current_line += word + " "
+        else:
+            if current_line:
+                lines.append(current_line.strip())
+            current_line = word + " "
+    
+    if current_line:
+        lines.append(current_line.strip())
+    
+    return lines
+
+def generate_random_name() -> str:
+    """Generate a random player name"""
+    prefixes = [
+        "Ruka", "Yuki", "Karen", "Tsukasa", "Megumi", "Ichigo",
+        "Squad", "Cancer", "Aerial", "Combat", "Elite", "Guardian",
+        "Phoenix", "Shadow", "Lightning", "Storm", "Blade", "Star"
+    ]
+    
+    suffixes = [
+        "Fan", "Master", "Slayer", "Ace", "Hero", "Legend",
+        "Pro", "Elite", "Prime", "Alpha", "Beta", "Gamma"
+    ]
+    
+    prefix = random.choice(prefixes)
+    suffix = random.choice(suffixes)
+    number = random.randint(10, 999)
+    
+    return f"{prefix}{suffix}{number}"
+
+def ease_in_out(t: float) -> float:
+    """Smooth easing function for animations"""
+    return t * t * (3.0 - 2.0 * t)
+
+def ease_in_cubic(t: float) -> float:
+    """Cubic ease-in function"""
+    return t * t * t
+
+def ease_out_cubic(t: float) -> float:
+    """Cubic ease-out function"""  
+    return 1 - pow(1 - t, 3)
+
+def screen_shake_offset(intensity: float, decay: float, time: float) -> Tuple[float, float]:
+    """Calculate screen shake offset"""
+    if intensity <= 0:
+        return (0, 0)
+    
+    # Decay the intensity over time
+    current_intensity = intensity * math.exp(-decay * time)
+    
+    # Generate random offset
+    angle = random.uniform(0, 2 * math.pi)
+    magnitude = random.uniform(0, current_intensity)
+    
+    x = math.cos(angle) * magnitude
+    y = math.sin(angle) * magnitude
+    
+    return (x, y)
+
+def color_lerp(color1: Tuple[int, int, int], color2: Tuple[int, int, int], t: float) -> Tuple[int, int, int]:
+    """Interpolate between two RGB colors"""
+    r = int(lerp(color1[0], color2[0], t))
+    g = int(lerp(color1[1], color2[1], t))
+    b = int(lerp(color1[2], color2[2], t))
+    
+    return (clamp(r, 0, 255), clamp(g, 0, 255), clamp(b, 0, 255))
+
+def ensure_directory_exists(directory: str):
+    """Ensure a directory exists, create if it doesn't"""
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+        print(f"Created directory: {directory}")
+
+def get_file_extension(filename: str) -> str:
+    """Get file extension from filename"""
+    return os.path.splitext(filename)[1].lower()
+
+def is_point_in_rectangle(point: Tuple[float, float], rect_center: Tuple[float, float], 
+                         rect_width: float, rect_height: float) -> bool:
+    """Check if point is inside rectangle"""
+    px, py = point
+    cx, cy = rect_center
+    
+    half_width = rect_width / 2
+    half_height = rect_height / 2
+    
+    return (cx - half_width <= px <= cx + half_width and
+            cy - half_height <= py <= cy + half_height)

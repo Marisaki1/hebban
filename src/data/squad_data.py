@@ -1,63 +1,10 @@
-# src/data/squad_data.py
 """
-Squad and character data definitions
+Character and squad data definitions
 """
 
 from typing import Dict, List, Optional, Any
 
-# Sprite configuration for animations
-SPRITE_CONFIG = {
-    "frame_size": (64, 64),  # Width, height of each frame
-    "animations": {
-        "idle": {
-            "frame_count": 4,
-            "frame_duration": 0.2,
-            "loop": True
-        },
-        "walk": {
-            "frame_count": 8,
-            "frame_duration": 0.1,
-            "loop": True
-        },
-        "run": {
-            "frame_count": 8,
-            "frame_duration": 0.08,
-            "loop": True
-        },
-        "jump": {
-            "frame_count": 4,
-            "frame_duration": 0.15,
-            "loop": False
-        },
-        "fall": {
-            "frame_count": 2,
-            "frame_duration": 0.2,
-            "loop": True
-        },
-        "attack1": {
-            "frame_count": 6,
-            "frame_duration": 0.1,
-            "loop": False
-        },
-        "attack2": {
-            "frame_count": 8,
-            "frame_duration": 0.08,
-            "loop": False
-        },
-        "hurt": {
-            "frame_count": 3,
-            "frame_duration": 0.15,
-            "loop": False
-        },
-        "death": {
-            "frame_count": 6,
-            "frame_duration": 0.2,
-            "loop": False
-        }
-    }
-}
-
-# Squad data
+# Squad data with all characters
 SQUAD_DATA = {
     "31A": {
         "id": "31A",
@@ -83,13 +30,11 @@ SQUAD_DATA = {
                 "defense": 6,
                 "abilities": ["Double Jump", "Dash Attack", "Leadership Boost"],
                 "color": (220, 100, 100),
-                "sprite_sheet": "ruka_sprites.png",
-                "portrait": "ruka_portrait.png",
                 "unlock_condition": "default"
             },
             {
                 "id": "yuki",
-                "name": "Yuki Izumi",
+                "name": "Yuki Izumi", 
                 "title": "Scout",
                 "bio": "Swift and agile scout specializing in reconnaissance",
                 "health": 80,
@@ -99,8 +44,6 @@ SQUAD_DATA = {
                 "defense": 4,
                 "abilities": ["Air Dash", "Quick Strike", "Enhanced Vision"],
                 "color": (100, 150, 220),
-                "sprite_sheet": "yuki_sprites.png",
-                "portrait": "yuki_portrait.png",
                 "unlock_condition": "default"
             },
             {
@@ -115,14 +58,12 @@ SQUAD_DATA = {
                 "defense": 8,
                 "abilities": ["Shield Bash", "Ground Pound", "Armor Up"],
                 "color": (100, 220, 100),
-                "sprite_sheet": "karen_sprites.png",
-                "portrait": "karen_portrait.png",
                 "unlock_condition": "default"
             },
             {
                 "id": "tsukasa",
                 "name": "Tsukasa Munakata",
-                "title": "Tech Specialist",
+                "title": "Tech Specialist", 
                 "bio": "Technology expert with energy-based attacks",
                 "health": 90,
                 "speed": 7,
@@ -131,8 +72,6 @@ SQUAD_DATA = {
                 "defense": 5,
                 "abilities": ["Teleport", "Energy Blast", "Tech Shield"],
                 "color": (200, 150, 100),
-                "sprite_sheet": "tsukasa_sprites.png",
-                "portrait": "tsukasa_portrait.png",
                 "unlock_condition": "default"
             },
             {
@@ -147,12 +86,10 @@ SQUAD_DATA = {
                 "defense": 6,
                 "abilities": ["Healing Aura", "Light Beam", "Purify"],
                 "color": (220, 220, 100),
-                "sprite_sheet": "megumi_sprites.png",
-                "portrait": "megumi_portrait.png",
                 "unlock_condition": "default"
             },
             {
-                "id": "ichigo",
+                "id": "ichigo", 
                 "name": "Ichigo Tanaka",
                 "title": "Pyro Specialist",
                 "bio": "Fire-based attacks and area control",
@@ -163,8 +100,6 @@ SQUAD_DATA = {
                 "defense": 5,
                 "abilities": ["Fire Ball", "Flame Dash", "Fire Shield"],
                 "color": (220, 120, 50),
-                "sprite_sheet": "ichigo_sprites.png",
-                "portrait": "ichigo_portrait.png",
                 "unlock_condition": "default"
             }
         ]
@@ -193,8 +128,6 @@ SQUAD_DATA = {
                 "defense": 7,
                 "abilities": ["Ice Wall", "Freeze Ray", "Blizzard"],
                 "color": (100, 200, 220),
-                "sprite_sheet": "seika_sprites.png",
-                "portrait": "seika_portrait.png",
                 "unlock_condition": "complete_chapter_2"
             },
             {
@@ -209,8 +142,6 @@ SQUAD_DATA = {
                 "defense": 4,
                 "abilities": ["Shadow Step", "Smoke Bomb", "Critical Strike"],
                 "color": (80, 80, 120),
-                "sprite_sheet": "mion_sprites.png",
-                "portrait": "mion_portrait.png",
                 "unlock_condition": "complete_chapter_2"
             },
             {
@@ -225,8 +156,6 @@ SQUAD_DATA = {
                 "defense": 5,
                 "abilities": ["Thunder Strike", "Electric Field", "Chain Lightning"],
                 "color": (200, 200, 50),
-                "sprite_sheet": "aoi_sprites.png",
-                "portrait": "aoi_portrait.png",
                 "unlock_condition": "complete_chapter_2"
             },
             {
@@ -241,8 +170,6 @@ SQUAD_DATA = {
                 "defense": 6,
                 "abilities": ["Wind Slash", "Tornado", "Air Walk"],
                 "color": (150, 220, 150),
-                "sprite_sheet": "sumire_sprites.png",
-                "portrait": "sumire_portrait.png",
                 "unlock_condition": "complete_chapter_2"
             },
             {
@@ -257,8 +184,6 @@ SQUAD_DATA = {
                 "defense": 8,
                 "abilities": ["Rock Throw", "Earth Quake", "Stone Shield"],
                 "color": (150, 100, 50),
-                "sprite_sheet": "kura_sprites.png",
-                "portrait": "kura_portrait.png",
                 "unlock_condition": "complete_chapter_2"
             },
             {
@@ -273,8 +198,6 @@ SQUAD_DATA = {
                 "defense": 5,
                 "abilities": ["Time Slow", "Blink", "Temporal Shield"],
                 "color": (180, 100, 180),
-                "sprite_sheet": "maria_sprites.png",
-                "portrait": "maria_portrait.png",
                 "unlock_condition": "complete_chapter_2"
             }
         ]
@@ -303,8 +226,6 @@ SQUAD_DATA = {
                 "defense": 5,
                 "abilities": ["Stealth", "Silent Strike", "Invisibility"],
                 "color": (120, 120, 120),
-                "sprite_sheet": "nina_sprites.png",
-                "portrait": "nina_portrait.png",
                 "unlock_condition": "complete_chapter_3"
             },
             {
@@ -319,8 +240,6 @@ SQUAD_DATA = {
                 "defense": 6,
                 "abilities": ["Spirit Fire", "Ward", "Exorcism"],
                 "color": (180, 50, 50),
-                "sprite_sheet": "rei_sprites.png",
-                "portrait": "rei_portrait.png",
                 "unlock_condition": "complete_chapter_3"
             },
             {
@@ -335,8 +254,6 @@ SQUAD_DATA = {
                 "defense": 5,
                 "abilities": ["Moon Beam", "Lunar Shield", "Night Vision"],
                 "color": (150, 150, 200),
-                "sprite_sheet": "luna_sprites.png",
-                "portrait": "luna_portrait.png",
                 "unlock_condition": "complete_chapter_3"
             },
             {
@@ -351,8 +268,6 @@ SQUAD_DATA = {
                 "defense": 5,
                 "abilities": ["Star Burst", "Meteor", "Cosmic Shield"],
                 "color": (200, 200, 100),
-                "sprite_sheet": "stella_sprites.png",
-                "portrait": "stella_portrait.png",
                 "unlock_condition": "complete_chapter_3"
             },
             {
@@ -367,8 +282,6 @@ SQUAD_DATA = {
                 "defense": 6,
                 "abilities": ["Sonic Boom", "Sound Barrier", "Resonance"],
                 "color": (100, 180, 100),
-                "sprite_sheet": "aria_sprites.png",
-                "portrait": "aria_portrait.png",
                 "unlock_condition": "complete_chapter_3"
             },
             {
@@ -383,8 +296,6 @@ SQUAD_DATA = {
                 "defense": 6,
                 "abilities": ["Energy Blast", "Power Surge", "Energy Shield"],
                 "color": (200, 100, 200),
-                "sprite_sheet": "nova_sprites.png",
-                "portrait": "nova_portrait.png",
                 "unlock_condition": "complete_chapter_3"
             }
         ]
