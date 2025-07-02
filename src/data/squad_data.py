@@ -55,6 +55,7 @@ SPRITE_CONFIG = {
         }
     }
 }
+
 # Squad data with all characters
 SQUAD_DATA = {
     "31A": {

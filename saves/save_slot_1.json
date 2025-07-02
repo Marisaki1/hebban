@@ -1,6 +1,6 @@
 {
   "save_id": "f08af471",
-  "timestamp": "2025-07-02T10:12:54.828246",
+  "timestamp": "2025-07-02T22:44:14.344905",
   "game_data": {
     "version": "1.0.0",
     "player_name": "Player",
@@ -19,7 +19,9 @@
       "master_volume": 1.0,
       "sfx_volume": 1.0,
       "music_volume": 1.0,
-      "controls": {}
+      "controls": {},
+      "Resolution": 1,
+      "Difficulty": 2
     }
   }
 }

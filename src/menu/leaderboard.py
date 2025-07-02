@@ -27,9 +27,9 @@ class LeaderboardMenu(MenuState):
         
         # Available stages
         self.stages = [
-            "Stage 1-1", "Stage 1-2", "Stage 1-3", "Stage 1-4",
-            "Stage 2-1", "Stage 2-2", "Stage 2-3", "Stage 2-4",
-            "Stage 3-1", "Stage 3-2", "Stage 3-3", "Stage 3-4"
+            "1-1", "1-2", "1-3", "1-4",
+            "2-1", "2-2", "2-3", "2-4",
+            "3-1", "3-2", "3-3", "3-4"
         ]
         
         self.current_stage_index = 0
