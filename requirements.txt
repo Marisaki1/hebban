@@ -1,6 +1,6 @@
-arcade==3.0.0
-Pillow==11.0.0
-pymunk==6.9.0
+arcade==2.6.17
+Pillow==9.3.0
+pymunk==6.4.0
 asyncio==3.4.3
 websockets==11.0.3
 jsonschema==4.17.3
