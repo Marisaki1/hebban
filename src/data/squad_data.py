@@ -4,6 +4,57 @@ Character and squad data definitions
 
 from typing import Dict, List, Optional, Any
 
+# Sprite configuration for animations
+SPRITE_CONFIG = {
+    "frame_size": (64, 64),  # Width, height of each frame
+    "animations": {
+        "idle": {
+            "frame_count": 4,
+            "frame_duration": 0.2,
+            "loop": True
+        },
+        "walk": {
+            "frame_count": 8,
+            "frame_duration": 0.1,
+            "loop": True
+        },
+        "run": {
+            "frame_count": 8,
+            "frame_duration": 0.08,
+            "loop": True
+        },
+        "jump": {
+            "frame_count": 4,
+            "frame_duration": 0.15,
+            "loop": False
+        },
+        "fall": {
+            "frame_count": 2,
+            "frame_duration": 0.2,
+            "loop": True
+        },
+        "attack1": {
+            "frame_count": 6,
+            "frame_duration": 0.1,
+            "loop": False
+        },
+        "attack2": {
+            "frame_count": 8,
+            "frame_duration": 0.08,
+            "loop": False
+        },
+        "hurt": {
+            "frame_count": 3,
+            "frame_duration": 0.15,
+            "loop": False
+        },
+        "death": {
+            "frame_count": 6,
+            "frame_duration": 0.2,
+            "loop": False
+        }
+    }
+}
 # Squad data with all characters
 SQUAD_DATA = {
     "31A": {
