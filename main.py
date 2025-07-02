@@ -46,18 +46,15 @@ def test_dependencies():
             except:
                 print(f"✗ {name} missing")
         
-        # Test Camera2D (new in 3.0.0)
+        # Test Camera (Arcade 3.0)
         try:
-            if hasattr(arcade, 'Camera2D'):
-                arcade.Camera2D
-                print("✓ arcade.Camera2D available")
-            elif hasattr(arcade, 'camera') and hasattr(arcade.camera, 'Camera2D'):
-                arcade.camera.Camera2D
-                print("✓ arcade.camera.Camera2D available")
+            if hasattr(arcade, 'Camera'):
+                arcade.Camera
+                print("✓ arcade.Camera available")
             else:
-                print("? Camera2D not found - using fallback")
+                print("? Camera not found")
         except:
-            print("? Camera2D test failed - using fallback")
+            print("? Camera test failed")
         
         # Test drawing functions
         drawing_funcs = [
@@ -129,7 +126,6 @@ try:
     # Import core systems
     from src.core.director import Director, Scene
     from src.core.asset_manager import AssetManager
-    from src.core.arcade_compat import safe_draw_text, get_arcade_version
     from src.input.input_manager import InputManager, InputAction, InputType
     from src.save.save_manager import SaveManager, SaveData
     from src.systems.gravity import GravityManager, GravityMode
@@ -155,7 +151,7 @@ except Exception as e:
     sys.exit(1)
 
 class HeavenBurnsRed(arcade.Window):
-    """Main game class with enhanced error handling - Fixed for Arcade 3.0.0"""
+    """Main game class with enhanced error handling - Fixed for Arcade 3.0"""
     def __init__(self, width: int, height: int, title: str):
         try:
             super().__init__(width, height, title, resizable=False)
@@ -286,9 +282,9 @@ class HeavenBurnsRed(arcade.Window):
                 # Don't raise - continue with other scenes
         
     def on_draw(self):
-        """Render the game with error handling - Arcade 3.0.0 Compatible"""
+        """Render the game with error handling - Arcade 3.0 Compatible"""
         try:
-            # Clear screen - this should always work
+            # Clear screen using Arcade 3.0 method
             self.clear()
             
             # Draw current scene
@@ -298,8 +294,8 @@ class HeavenBurnsRed(arcade.Window):
             if self.show_fps:
                 fps_value = round(1/self._last_delta_time) if self._last_delta_time > 0 else 0
                 try:
-                    # Try to draw FPS using compatibility layer
-                    safe_draw_text(
+                    # Draw FPS using direct arcade calls
+                    arcade.draw_text(
                         f"FPS: {fps_value}",
                         10, SCREEN_HEIGHT - 30,
                         arcade.color.WHITE,
@@ -313,7 +309,7 @@ class HeavenBurnsRed(arcade.Window):
             # Don't re-raise - this would crash the game loop
             # Instead, try to draw a simple error message
             try:
-                safe_draw_text(
+                arcade.draw_text(
                     "Rendering Error", 
                     SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2, 
                     arcade.color.RED, 
@@ -349,7 +345,18 @@ class HeavenBurnsRed(arcade.Window):
             # Debug info
             elif key == arcade.key.F2:
                 print("=== DEBUG INFO ===")
-                print(f"Arcade version: {get_arcade_version()}")
+                try:
+                    import arcade
+                    if hasattr(arcade, 'version'):
+                        version = arcade.version.VERSION
+                    elif hasattr(arcade, '__version__'):
+                        version = arcade.__version__
+                    else:
+                        version = "Unknown"
+                    print(f"Arcade version: {version}")
+                except:
+                    print("Arcade version: Unknown")
+                    
                 print(f"Current scene: {type(self.director.get_current_scene()).__name__ if self.director.get_current_scene() else 'None'}")
                 print(f"Scene stack: {self.director.get_scene_stack_info()}")
                 self.asset_manager.debug_info()

@@ -1,6 +1,7 @@
-# ============================================================================
-# FILE: src/menu/settings_menu.py
-# ============================================================================
+# src/menu/settings_menu.py - Fixed for Arcade 3.0
+"""
+Game settings menu - Fixed for Arcade 3.0
+"""
 from typing import List
 import arcade
 
@@ -46,7 +47,7 @@ class SettingsMenu(MenuState):
         self.editing_keybind = False
         
     def draw_setting_item(self, item: dict, x: float, y: float, selected: bool):
-        """Draw individual setting item"""
+        """Draw individual setting item using Arcade 3.0 functions"""
         # Background
         bg_color = arcade.color.DARK_RED if selected else arcade.color.DARK_GRAY
         arcade.draw_rectangle_filled(x, y, 600, 40, bg_color)
@@ -98,9 +99,7 @@ class SettingsMenu(MenuState):
             )
             
     def draw(self):
-        """Draw settings menu"""
-        arcade.start_render()
-        
+        """Draw settings menu using Arcade 3.0 functions"""
         # Background
         arcade.draw_rectangle_filled(
             SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2,

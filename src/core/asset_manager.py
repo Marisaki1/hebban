@@ -1,13 +1,13 @@
 # src/core/asset_manager.py
 """
-Asset Manager for Arcade 3.0.0 and Pillow 11.0.0 - Completely rewritten
+Asset Manager for Arcade 3.0 and Pillow 11.0.0 - Fixed for proper texture creation
 """
 import os
 import arcade
 from typing import Dict, Optional
 
 class AssetManager:
-    """Manages game assets with robust fallbacks for Arcade 3.0.0 and Pillow 11.0.0"""
+    """Manages game assets with robust fallbacks for Arcade 3.0 and Pillow 11.0.0"""
     _instance = None
     
     def __new__(cls):
@@ -30,7 +30,7 @@ class AssetManager:
             self.generate_default_assets()
     
     def generate_default_assets(self):
-        """Generate default placeholder assets using Arcade 3.0.0 and Pillow 11.0.0 compatible methods"""
+        """Generate default placeholder assets using Arcade 3.0 and Pillow 11.0.0 compatible methods"""
         # Create default textures
         self._create_default_texture('default_character', (64, 64), (100, 150, 200))
         self._create_default_texture('default_enemy', (64, 64), (200, 100, 100))
@@ -38,12 +38,12 @@ class AssetManager:
         self._create_default_texture('default_squad_icon', (50, 50), (150, 150, 150))
         
     def _create_default_texture(self, name: str, size: tuple, color: tuple):
-        """Create a default colored texture using Arcade 3.0.0 and Pillow 11.0.0 compatible methods"""
+        """Create a default colored texture using Arcade 3.0 and Pillow 11.0.0 compatible methods"""
         try:
-            # Method 1: Try Arcade 3.0.0's Texture.create_filled
+            # Method 1: Try Arcade 3.0's Texture.create_filled
             texture = arcade.Texture.create_filled(name, size, color)
             self.textures[name] = texture
-            print(f"✓ Created texture {name} using Arcade 3.0.0 create_filled")
+            print(f"✓ Created texture {name} using Arcade 3.0 create_filled")
             return
         except Exception as e:
             print(f"Method 1 failed for {name}: {e}")
@@ -62,6 +62,7 @@ class AssetManager:
             
             # Create image using Pillow 11.0.0
             image = Image.new('RGBA', size, color)
+            # Use proper Arcade 3.0 Texture constructor: only name and image
             texture = arcade.Texture(name, image)
             self.textures[name] = texture
             print(f"✓ Created texture {name} using Pillow 11.0.0")
@@ -70,42 +71,30 @@ class AssetManager:
             print(f"Method 2 failed for {name}: {e}")
         
         try:
-            # Method 3: Try older arcade methods for compatibility
-            if hasattr(arcade, 'make_soft_square_texture'):
-                size_val = max(size)
-                texture = arcade.make_soft_square_texture(size_val, color, outer_alpha=255)
-                self.textures[name] = texture
-                print(f"✓ Created texture {name} using make_soft_square_texture")
-                return
+            # Method 3: Try Arcade 3.0 create_empty then modify
+            texture = arcade.Texture.create_empty(name, size)
+            self.textures[name] = texture
+            print(f"✓ Created empty texture for {name}")
+            return
         except Exception as e:
             print(f"Method 3 failed for {name}: {e}")
-        
-        try:
-            # Method 4: Create empty texture as ultimate fallback
-            if hasattr(arcade.Texture, 'create_empty'):
-                texture = arcade.Texture.create_empty(name, size)
-                self.textures[name] = texture
-                print(f"Created empty texture for {name}")
-                return
-        except Exception as e:
-            print(f"Method 4 failed for {name}: {e}")
         
         # Final fallback - store None and handle it in get_texture
         print(f"All texture creation methods failed for {name}")
         self.textures[name] = None
         
     def get_texture(self, path: str, fallback: str = 'default_character') -> Optional[arcade.Texture]:
-        """Get texture with fallback support for Arcade 3.0.0"""
+        """Get texture with fallback support for Arcade 3.0"""
         # Return cached texture if available
         if path in self.textures and self.textures[path] is not None:
             return self.textures[path]
             
-        # Try to load the texture from file using Arcade 3.0.0 methods
+        # Try to load the texture from file using Arcade 3.0 methods
         for base_path in self.asset_paths.values():
             full_path = os.path.join(base_path, path)
             if os.path.exists(full_path):
                 try:
-                    # Arcade 3.0.0 simplified texture loading
+                    # Arcade 3.0 simplified texture loading
                     texture = arcade.load_texture(full_path)
                     self.textures[path] = texture
                     return texture
@@ -151,6 +140,7 @@ class AssetManager:
                 draw.line([0, 0, 31, 31], fill=(255, 255, 255, 255), width=1)
                 draw.line([0, 31, 31, 0], fill=(255, 255, 255, 255), width=1)
             
+            # Use proper Arcade 3.0 constructor
             texture = arcade.Texture(f"emergency_{name}", image)
             return texture
         except Exception as e:
@@ -215,7 +205,7 @@ class AssetManager:
             self._create_default_texture(f"{character_id}_idle", (64, 64), (100, 150, 200))
                 
     def create_colored_texture(self, name: str, size: tuple, color: tuple) -> Optional[arcade.Texture]:
-        """Create a solid colored texture using Arcade 3.0.0 methods"""
+        """Create a solid colored texture using Arcade 3.0 methods"""
         try:
             # Use the main texture creation method
             self._create_default_texture(name, size, color)

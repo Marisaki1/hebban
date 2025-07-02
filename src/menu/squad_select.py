@@ -1,13 +1,12 @@
-# src/menu/squad_select.py - Fixed for Arcade 3.0.0
+# src/menu/squad_select.py - Fixed for Arcade 3.0
 import arcade
 import json
 from src.menu.menu_state import MenuState
 from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
-from src.core.arcade_compat import safe_draw_rectangle_filled, safe_draw_rectangle_outline, safe_draw_text
 from src.input.input_manager import InputAction
 
 class SquadCard:
-    """Visual representation of a squad with mouse support - Arcade 3.0.0 compatible"""
+    """Visual representation of a squad with mouse support - Arcade 3.0 compatible"""
     def __init__(self, squad_data: dict, x: float, y: float, index: int):
         self.data = squad_data
         self.x = x
@@ -26,7 +25,7 @@ class SquadCard:
                 self.y - half_height <= y <= self.y + half_height)
         
     def draw(self):
-        """Draw the squad card using Arcade 3.0.0 compatible methods"""
+        """Draw the squad card using Arcade 3.0 functions"""
         try:
             # Card background
             if self.is_selected:
@@ -40,16 +39,16 @@ class SquadCard:
                 border_width = 1
                 
             # Draw card
-            safe_draw_rectangle_filled(
+            arcade.draw_rectangle_filled(
                 self.x, self.y, self.width, self.height, color
             )
-            safe_draw_rectangle_outline(
+            arcade.draw_rectangle_outline(
                 self.x, self.y, self.width, self.height,
                 arcade.color.WHITE, border_width
             )
             
             # Draw squad name
-            safe_draw_text(
+            arcade.draw_text(
                 self.data['name'],
                 self.x, self.y + 100,
                 arcade.color.WHITE,
@@ -72,18 +71,18 @@ class SquadCard:
                 icon_y = start_y - row * (icon_size + spacing)
                 
                 # Draw character icon placeholder
-                safe_draw_rectangle_filled(
+                arcade.draw_rectangle_filled(
                     icon_x, icon_y, icon_size, icon_size,
                     arcade.color.DARK_BLUE_GRAY
                 )
-                safe_draw_rectangle_outline(
+                arcade.draw_rectangle_outline(
                     icon_x, icon_y, icon_size, icon_size,
                     arcade.color.LIGHT_GRAY, 1
                 )
                 
                 # Draw character name abbreviation
                 char_name = member.get('name', f'M{i+1}')
-                safe_draw_text(
+                arcade.draw_text(
                     char_name[:3],
                     icon_x, icon_y,
                     arcade.color.WHITE,
@@ -98,7 +97,7 @@ class SquadCard:
             if len(description) > 30:
                 description = description[:27] + "..."
                 
-            safe_draw_text(
+            arcade.draw_text(
                 description,
                 self.x, self.y - 110,
                 arcade.color.LIGHT_GRAY,
@@ -109,10 +108,10 @@ class SquadCard:
         except Exception as e:
             print(f"Error drawing squad card: {e}")
             # Fallback simple card
-            safe_draw_rectangle_filled(
+            arcade.draw_rectangle_filled(
                 self.x, self.y, self.width, self.height, arcade.color.DARK_GRAY
             )
-            safe_draw_text(
+            arcade.draw_text(
                 self.data.get('name', 'Squad'),
                 self.x, self.y,
                 arcade.color.WHITE,
@@ -122,7 +121,7 @@ class SquadCard:
             )
 
 class CharacterInfo:
-    """Character information panel - Arcade 3.0.0 compatible"""
+    """Character information panel - Arcade 3.0 compatible"""
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
@@ -135,20 +134,20 @@ class CharacterInfo:
         self.character = character_data
         
     def draw(self):
-        """Draw character information using Arcade 3.0.0 compatible methods"""
+        """Draw character information using Arcade 3.0 functions"""
         try:
             # Background panel
-            safe_draw_rectangle_filled(
+            arcade.draw_rectangle_filled(
                 self.x, self.y, self.width, self.height,
                 arcade.color.DARK_BLUE_GRAY
             )
-            safe_draw_rectangle_outline(
+            arcade.draw_rectangle_outline(
                 self.x, self.y, self.width, self.height,
                 arcade.color.WHITE, 2
             )
             
             if not self.character:
-                safe_draw_text(
+                arcade.draw_text(
                     "Select a squad",
                     self.x, self.y,
                     arcade.color.WHITE,
@@ -160,18 +159,18 @@ class CharacterInfo:
                 
             # Character portrait placeholder
             portrait_size = 128
-            safe_draw_rectangle_filled(
+            arcade.draw_rectangle_filled(
                 self.x, self.y + 200, portrait_size, portrait_size,
                 arcade.color.DARK_GRAY
             )
-            safe_draw_rectangle_outline(
+            arcade.draw_rectangle_outline(
                 self.x, self.y + 200, portrait_size, portrait_size,
                 arcade.color.LIGHT_GRAY, 1
             )
             
             # Character initial
             char_name = self.character.get('name', 'Character')
-            safe_draw_text(
+            arcade.draw_text(
                 char_name[0],
                 self.x, self.y + 200,
                 arcade.color.WHITE,
@@ -181,7 +180,7 @@ class CharacterInfo:
             )
             
             # Character name
-            safe_draw_text(
+            arcade.draw_text(
                 char_name,
                 self.x, self.y + 100,
                 arcade.color.WHITE,
@@ -191,7 +190,7 @@ class CharacterInfo:
             
             # Character title/role
             title = self.character.get('title', 'Fighter')
-            safe_draw_text(
+            arcade.draw_text(
                 title,
                 self.x, self.y + 70,
                 arcade.color.YELLOW,
@@ -212,7 +211,7 @@ class CharacterInfo:
             ]
             
             for i, stat in enumerate(stats):
-                safe_draw_text(
+                arcade.draw_text(
                     stat,
                     self.x - 100, stat_y - i * stat_spacing,
                     arcade.color.WHITE,
@@ -221,7 +220,7 @@ class CharacterInfo:
                 
             # Abilities
             ability_y = stat_y - 180
-            safe_draw_text(
+            arcade.draw_text(
                 "Abilities:",
                 self.x - 100, ability_y,
                 arcade.color.YELLOW,
@@ -231,7 +230,7 @@ class CharacterInfo:
             abilities = self.character.get('abilities', [])
             for i, ability in enumerate(abilities[:3]):  # Show up to 3 abilities
                 ability_text = ability if isinstance(ability, str) else str(ability)
-                safe_draw_text(
+                arcade.draw_text(
                     f"• {ability_text}",
                     self.x - 90, ability_y - 25 - i * 20,
                     arcade.color.WHITE,
@@ -242,7 +241,7 @@ class CharacterInfo:
             print(f"Error drawing character info: {e}")
 
 class SquadSelectMenu(MenuState):
-    """Squad selection menu with character grid and proper navigation - Arcade 3.0.0 compatible"""
+    """Squad selection menu with character grid and proper navigation - Arcade 3.0 compatible"""
     def __init__(self, director, input_manager):
         super().__init__(director, input_manager)
         self.title = "Select Your Squad"
@@ -445,17 +444,17 @@ class SquadSelectMenu(MenuState):
                     break
             
     def draw(self):
-        """Draw squad selection screen - Arcade 3.0.0 Compatible"""
+        """Draw squad selection screen - Arcade 3.0 Compatible"""
         try:
             # Draw background
-            safe_draw_rectangle_filled(
+            arcade.draw_rectangle_filled(
                 SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2,
                 SCREEN_WIDTH, SCREEN_HEIGHT,
                 (20, 20, 20)
             )
             
             # Draw title
-            safe_draw_text(
+            arcade.draw_text(
                 self.title,
                 SCREEN_WIDTH // 2,
                 SCREEN_HEIGHT - 80,
@@ -472,7 +471,7 @@ class SquadSelectMenu(MenuState):
             self.character_info.draw()
             
             # Draw instructions
-            safe_draw_text(
+            arcade.draw_text(
                 "Use LEFT/RIGHT to select squad, ENTER to confirm, ESC to go back",
                 SCREEN_WIDTH // 2,
                 50,
@@ -484,7 +483,7 @@ class SquadSelectMenu(MenuState):
         except Exception as e:
             print(f"Error drawing squad select: {e}")
             # Fallback drawing
-            safe_draw_text(
+            arcade.draw_text(
                 "Squad Selection (Error in drawing)",
                 SCREEN_WIDTH // 2,
                 SCREEN_HEIGHT // 2,

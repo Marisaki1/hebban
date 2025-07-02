@@ -1,6 +1,6 @@
 # src/core/sprite_manager.py
 """
-Sprite Manager for loading and managing character sprites - Fixed for Arcade 3.0.0 and Pillow 11.0.0
+Sprite Manager for loading and managing character sprites - Fixed for Arcade 3.0 and Pillow 11.0.0
 """
 
 import os
@@ -10,7 +10,7 @@ from src.systems.animation import Animation, AnimationController, AnimationState
 from src.data.squad_data import SPRITE_CONFIG
 
 class SpriteManager:
-    """Manages all sprite loading and animation creation - Fixed for Arcade 3.0.0 and Pillow 11.0.0"""
+    """Manages all sprite loading and animation creation - Fixed for Arcade 3.0 and Pillow 11.0.0"""
     
     def __init__(self):
         self.sprite_cache: Dict[str, arcade.Texture] = {}
@@ -51,7 +51,7 @@ class SpriteManager:
         return self.animation_speeds.get(animation_name, 1.0)
         
     def load_character_sprites(self, character_id: str) -> bool:
-        """Load all sprites for a character using Arcade 3.0.0 and Pillow 11.0.0"""
+        """Load all sprites for a character using Arcade 3.0 and Pillow 11.0.0"""
         loaded_any = False
         
         # Expected sprite files
@@ -152,14 +152,14 @@ class SpriteManager:
         
     def _load_sprite_sheet(self, filepath: str, character_id: str, animation_name: str, 
                           frame_count: int, frame_size: Tuple[int, int]) -> List[arcade.Texture]:
-        """Load a sprite sheet and return list of frame textures using Arcade 3.0.0"""
+        """Load a sprite sheet and return list of frame textures using Arcade 3.0"""
         frames = []
         
         try:
             # Calculate frame width (assuming horizontal layout)
             frame_width, frame_height = frame_size
             
-            # Load each frame using Arcade 3.0.0 methods
+            # Load each frame using Arcade 3.0 methods
             for i in range(frame_count):
                 # Create a unique name for each frame
                 frame_name = f"{character_id}_{animation_name}_frame{i}"
@@ -275,7 +275,7 @@ class SpriteManager:
                     draw.rectangle([text_x, y_offset, text_x + text_width, y_offset + 10], fill=(255, 255, 255, 255))
                     y_offset += 15
             
-            # Convert to arcade texture
+            # Convert to arcade texture using proper Arcade 3.0 constructor
             texture_name = f"{character_id}_{animation_name}_placeholder"
             texture = arcade.Texture(texture_name, image)
             return texture

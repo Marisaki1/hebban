@@ -1,20 +1,52 @@
-# src/scenes/gameplay.py - Fixed for Arcade 3.0.0
+# src/scenes/gameplay.py - Fixed for Arcade 3.0
 """
-Enhanced gameplay scene with sound and particle effects - Fixed for Arcade 3.0.0
+Enhanced gameplay scene with sound and particle effects - Fixed for Arcade 3.0
 """
 
 import arcade
 import random
 from src.core.director import Scene
 from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
-from src.core.arcade_compat import safe_draw_rectangle_filled, safe_draw_text, create_solid_color_sprite
 from src.entities.player import Player
 from src.entities.enemies.cancer_base import CancerEnemy
 from src.ui.hud import HUD
 from src.data.squad_data import get_character_data
 
+def create_solid_color_sprite(width, height, color):
+    """Create a solid color sprite using Arcade 3.0 methods"""
+    try:
+        # Method 1: Try Texture.create_filled (3.0 method)
+        texture = arcade.Texture.create_filled(f"solid_{color}", (width, height), color)
+        sprite = arcade.Sprite()
+        sprite.texture = texture
+        return sprite
+    except Exception:
+        pass
+    
+    try:
+        # Method 2: Try creating with PIL if available
+        from PIL import Image
+        image = Image.new('RGBA', (width, height), color + (255,))
+        texture = arcade.Texture(f"solid_{color}_pil", image)
+        sprite = arcade.Sprite()
+        sprite.texture = texture
+        return sprite
+    except Exception:
+        pass
+    
+    try:
+        # Method 3: Use basic sprite with default texture
+        sprite = arcade.Sprite()
+        # Set size properties
+        sprite.width = width
+        sprite.height = height
+        return sprite
+    except Exception as e:
+        print(f"Failed to create solid color sprite: {e}")
+        return arcade.Sprite()
+
 class GameplayScene(Scene):
-    """Main gameplay scene with all enhancements - Arcade 3.0.0 Compatible"""
+    """Main gameplay scene with all enhancements - Arcade 3.0 Compatible"""
     def __init__(self, director, input_manager):
         super().__init__(director)
         self.input_manager = input_manager
@@ -38,7 +70,7 @@ class GameplayScene(Scene):
         self.game_over = False
         self.victory = False
         
-        # Camera - Arcade 3.0.0 Style
+        # Camera - Arcade 3.0 Style
         self.camera = None
         self.gui_camera = None
         
@@ -64,29 +96,17 @@ class GameplayScene(Scene):
         
     def on_enter(self):
         """Setup gameplay scene"""
-        # Create cameras - Arcade 3.0.0 Style
+        # Create cameras - Arcade 3.0 Style
         try:
-            # Method 1: Try Camera2D (3.0.0 preferred)
-            self.camera = arcade.Camera2D()
-            self.gui_camera = arcade.Camera2D()
-            print("✓ Using Arcade 3.0.0 Camera2D")
-        except AttributeError:
-            try:
-                # Method 2: Try camera.Camera2D
-                self.camera = arcade.camera.Camera2D()
-                self.gui_camera = arcade.camera.Camera2D()
-                print("✓ Using arcade.camera.Camera2D")
-            except AttributeError:
-                try:
-                    # Method 3: Fallback to legacy Camera (2.6.x style)
-                    self.camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
-                    self.gui_camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
-                    print("✓ Using legacy Camera fallback")
-                except Exception as e:
-                    print(f"✗ Camera creation failed: {e}")
-                    # Create dummy camera object
-                    self.camera = type('DummyCamera', (), {'use': lambda: None})()
-                    self.gui_camera = type('DummyCamera', (), {'use': lambda: None})()
+            # Use standard Arcade 3.0 Camera
+            self.camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
+            self.gui_camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
+            print("✓ Using Arcade 3.0 Camera")
+        except Exception as e:
+            print(f"✗ Camera creation failed: {e}")
+            # Create dummy camera object
+            self.camera = type('DummyCamera', (), {'use': lambda: None})()
+            self.gui_camera = type('DummyCamera', (), {'use': lambda: None})()
         
         # Clear any existing particle effects
         if self.particle_manager:
@@ -162,8 +182,8 @@ class GameplayScene(Scene):
         }
             
     def load_level(self, level_num: int):
-        """Load level data using proper Arcade 3.0.0 sprite creation"""
-        # Create platforms using proper Arcade 3.0.0 methods
+        """Load level data using proper Arcade 3.0 sprite creation"""
+        # Create platforms using proper Arcade 3.0 methods
         platform_color = arcade.color.DARK_GRAY
         
         # Ground platforms
@@ -325,28 +345,26 @@ class GameplayScene(Scene):
         self.spawn_enemies()
             
     def center_camera_on_player(self):
-        """Center camera on player with bounds - Arcade 3.0.0 Style"""
-        if not self.camera or not hasattr(self.camera, 'position'):
+        """Center camera on player with bounds - Arcade 3.0 Style"""
+        if not self.camera or not hasattr(self.camera, 'move_to'):
             return
             
         try:
-            # Arcade 3.0.0 Camera2D style
-            if hasattr(self.camera, 'position'):
-                # Calculate camera position
-                camera_x = self.player.center_x
-                camera_y = self.player.center_y
-                
-                # Don't let camera go too far negative
-                camera_x = max(camera_x, SCREEN_WIDTH // 2)
-                camera_y = max(camera_y, SCREEN_HEIGHT // 2)
-                
-                # Update camera position
-                self.camera.position = (camera_x, camera_y)
+            # Calculate camera position
+            camera_x = self.player.center_x - SCREEN_WIDTH // 2
+            camera_y = self.player.center_y - SCREEN_HEIGHT // 2
+            
+            # Don't let camera go too far negative
+            camera_x = max(camera_x, 0)
+            camera_y = max(camera_y, 0)
+            
+            # Update camera position using Arcade 3.0 method
+            self.camera.move_to((camera_x, camera_y))
         except Exception as e:
             print(f"Camera update error: {e}")
         
     def draw(self):
-        """Draw gameplay - Arcade 3.0.0 Style"""
+        """Draw gameplay - Arcade 3.0 Style"""
         try:
             # Use game camera
             self.camera.use()
@@ -388,8 +406,8 @@ class GameplayScene(Scene):
                 print(f"Fallback HUD draw error: {e2}")
         
         try:
-            # Draw debug info using compatibility layer
-            safe_draw_text(
+            # Draw debug info using direct arcade calls
+            arcade.draw_text(
                 f"Character: {self.player.character_data['name']}",
                 10, SCREEN_HEIGHT - 80,
                 arcade.color.WHITE,
@@ -399,7 +417,7 @@ class GameplayScene(Scene):
             # Draw combo indicator
             if self.player.attack_combo > 0:
                 combo_text = f"COMBO x{self.player.attack_combo}"
-                safe_draw_text(
+                arcade.draw_text(
                     combo_text,
                     SCREEN_WIDTH // 2,
                     SCREEN_HEIGHT - 100,

@@ -1,6 +1,7 @@
-# ============================================================================
-# FILE: src/menu/lobby_menu.py
-# ============================================================================
+# src/menu/lobby_menu.py - Fixed for Arcade 3.0
+"""
+Multiplayer lobby for hosting/joining games - Fixed for Arcade 3.0
+"""
 from typing import List
 import arcade
 
@@ -39,9 +40,7 @@ class LobbyMenu(MenuState):
         return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
         
     def draw(self):
-        """Draw lobby screen"""
-        arcade.start_render()
-        
+        """Draw lobby screen using Arcade 3.0 functions"""
         # Background
         arcade.draw_rectangle_filled(
             SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2,

@@ -3,7 +3,6 @@
 Enhanced Director with system management and better scene handling - Arcade 3.0 Compatible
 """
 import arcade
-from src.core.arcade_compat import safe_draw_rectangle_filled, safe_draw_text
 from typing import Any, Dict, List, Optional
 
 class Scene:
@@ -161,9 +160,9 @@ class Director:
         if current:
             current.draw()
         else:
-            # Draw a fallback screen if no scene is available - using compatibility layer
-            safe_draw_rectangle_filled(640, 360, 1280, 720, (20, 20, 20))
-            safe_draw_text(
+            # Draw a fallback screen if no scene is available - using direct arcade calls
+            arcade.draw_rectangle_filled(640, 360, 1280, 720, (20, 20, 20))
+            arcade.draw_text(
                 "No Scene Available",
                 640, 360,
                 arcade.color.WHITE,

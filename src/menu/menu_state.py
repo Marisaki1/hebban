@@ -1,15 +1,14 @@
 # src/menu/menu_state.py
 """
-Fixed menu state that works with Arcade 3.0.0 - Uses updated drawing functions
+Fixed menu state that works with Arcade 3.0 - Uses direct arcade drawing functions
 """
 import arcade
 from src.core.director import Scene
-from src.core.arcade_compat import safe_draw_rectangle_filled, safe_draw_rectangle_outline, safe_draw_text
 from src.input.input_manager import InputManager, InputAction
 from typing import List, Callable
 
 class MenuItem:
-    """Individual menu item with Arcade 3.0.0 compatible drawing"""
+    """Individual menu item with Arcade 3.0 compatible drawing"""
     def __init__(self, text: str, action: Callable, x: float, y: float):
         self.text = text
         self.action = action
@@ -21,7 +20,7 @@ class MenuItem:
         self.is_selected = False
         
     def draw(self):
-        """Draw the menu item using Arcade 3.0.0 compatible functions"""
+        """Draw the menu item using Arcade 3.0 functions"""
         # Determine colors based on state
         if self.is_selected:
             bg_color = arcade.color.CRIMSON
@@ -34,18 +33,18 @@ class MenuItem:
             border_width = 1
         
         # Draw background
-        safe_draw_rectangle_filled(
+        arcade.draw_rectangle_filled(
             self.x, self.y, self.width, self.height, bg_color
         )
         
         # Draw border
-        safe_draw_rectangle_outline(
+        arcade.draw_rectangle_outline(
             self.x, self.y, self.width, self.height, 
             arcade.color.WHITE, border_width
         )
         
         # Draw text
-        safe_draw_text(
+        arcade.draw_text(
             self.text,
             self.x, self.y,
             arcade.color.WHITE,
@@ -62,7 +61,7 @@ class MenuItem:
                 self.y - half_height <= y <= self.y + half_height)
 
 class MenuState(Scene):
-    """Base class for all menu states - Fixed for Arcade 3.0.0"""
+    """Base class for all menu states - Fixed for Arcade 3.0"""
     def __init__(self, director, input_manager: InputManager):
         super().__init__(director)
         self.input_manager = input_manager
@@ -202,14 +201,14 @@ class MenuState(Scene):
         self.input_handled = False
                     
     def draw(self):
-        """Draw the menu using Arcade 3.0.0 compatible functions"""
+        """Draw the menu using Arcade 3.0 functions"""
         # Draw background
-        safe_draw_rectangle_filled(
+        arcade.draw_rectangle_filled(
             640, 360, 1280, 720, (20, 20, 20)
         )
         
         # Draw title
-        safe_draw_text(
+        arcade.draw_text(
             self.title,
             640, 600,
             arcade.color.CRIMSON,
@@ -224,7 +223,7 @@ class MenuState(Scene):
             except Exception as e:
                 print(f"Error drawing menu item '{item.text}': {e}")
                 # Draw fallback text
-                safe_draw_text(
+                arcade.draw_text(
                     item.text,
                     item.x, item.y,
                     arcade.color.WHITE,

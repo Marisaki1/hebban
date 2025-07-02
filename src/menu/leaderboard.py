@@ -1,6 +1,7 @@
-# ============================================================================
-# FILE: src/menu/leaderboard.py
-# ============================================================================
+# src/menu/leaderboard.py - Fixed for Arcade 3.0
+"""
+Global leaderboard per stage - Fixed for Arcade 3.0
+"""
 from typing import Dict, List
 import arcade
 
@@ -51,9 +52,7 @@ class LeaderboardMenu(MenuState):
         return data
         
     def draw(self):
-        """Draw leaderboard"""
-        arcade.start_render()
-        
+        """Draw leaderboard using Arcade 3.0 functions"""
         # Background
         arcade.draw_rectangle_filled(
             SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2,
