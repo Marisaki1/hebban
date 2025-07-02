@@ -36,14 +36,17 @@ class HUD:
         except:
             # Fallback - try asset manager
             try:
-                from src.core.asset_manager import AssetManager
-                asset_manager = AssetManager()
+                from src.core.asset_manager import asset_manager
+                char_id = getattr(self.player, 'character_id', 'default')
+                portrait = asset_manager.get_texture(f'{char_id}_portrait')
+                if portrait:
+                    return portrait
                 return asset_manager.get_texture('default_character')
             except:
                 return None
         
     def draw(self):
-        """Draw HUD elements using compatibility layer"""
+        """Draw HUD elements using Arcade 3.0.0 compatibility layer"""
         # Character portrait frame
         portrait_x = 60
         portrait_y = SCREEN_HEIGHT - 60
@@ -77,7 +80,7 @@ class HUD:
                 arcade.color.DARK_BLUE_GRAY
             )
             # Draw character name initial
-            char_name = self.player.character_data.get('name', 'P')
+            char_name = self.player.character_data.get('name', 'Player')
             safe_draw_text(
                 char_name[0],
                 portrait_x, portrait_y,
@@ -193,8 +196,13 @@ class HUD:
         
         # FPS counter
         if self.show_fps:
+            try:
+                fps_value = arcade.get_fps()
+            except:
+                fps_value = 60  # Default fallback
+                
             safe_draw_text(
-                f"FPS: {arcade.get_fps():.0f}",
+                f"FPS: {fps_value:.0f}",
                 10, 10,
                 arcade.color.WHITE,
                 12
@@ -208,7 +216,7 @@ class HUD:
         spacing = 10
         
         # Get player abilities
-        abilities = self.player.abilities[:4]  # Show up to 4 abilities
+        abilities = getattr(self.player, 'abilities', [])[:4]  # Show up to 4 abilities
         
         for i, ability_name in enumerate(abilities):
             x = ability_x + i * (icon_size + spacing)
@@ -231,8 +239,9 @@ class HUD:
                 )
                 
             # Ability name (abbreviated)
+            ability_short = ability_name[:6] if isinstance(ability_name, str) else str(ability_name)[:6]
             safe_draw_text(
-                ability_name[:6],
+                ability_short,
                 x, y,
                 arcade.color.WHITE,
                 10,
@@ -255,24 +264,25 @@ class HUD:
         )
         
         # Combo fill based on timer
-        if hasattr(self.player, 'combo_timer') and self.player.combo_timer > 0:
-            fill_percentage = self.player.combo_timer / self.player.max_combo_time
-            fill_width = bg_width * fill_percentage
-            
-            # Gradient color based on combo level
-            if self.player.attack_combo >= 5:
-                color = arcade.color.RED
-            elif self.player.attack_combo >= 3:
-                color = arcade.color.ORANGE
-            else:
-                color = arcade.color.YELLOW
-            
-            safe_draw_rectangle_filled(
-                combo_x - bg_width/2 + fill_width/2, combo_y,
-                fill_width, bg_height - 4,
-                color
-            )
-            
+        if hasattr(self.player, 'combo_timer') and hasattr(self.player, 'max_combo_time'):
+            if self.player.combo_timer > 0:
+                fill_percentage = self.player.combo_timer / self.player.max_combo_time
+                fill_width = bg_width * fill_percentage
+                
+                # Gradient color based on combo level
+                if self.player.attack_combo >= 5:
+                    color = arcade.color.RED
+                elif self.player.attack_combo >= 3:
+                    color = arcade.color.ORANGE
+                else:
+                    color = arcade.color.YELLOW
+                
+                safe_draw_rectangle_filled(
+                    combo_x - bg_width/2 + fill_width/2, combo_y,
+                    fill_width, bg_height - 4,
+                    color
+                )
+        
         # Combo text
         combo_text = f"COMBO x{self.player.attack_combo}"
         text_size = min(24, 20 + self.player.attack_combo * 2)  # Grow with combo
@@ -321,3 +331,7 @@ class HUD:
         if show_popup:
             self.score_popup_value = points
             self.score_popup_timer = 1.0
+            
+    def set_show_fps(self, show: bool):
+        """Toggle FPS display"""
+        self.show_fps = show

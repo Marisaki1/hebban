@@ -1,6 +1,6 @@
 """
 Heaven Burns Red - Main Game Entry Point
-Fixed for Arcade 3.0.0 compatibility issues
+Fixed for Arcade 3.0.0, Pillow 11.0.0, and Pymunk 6.9.0 compatibility
 """
 
 import os
@@ -11,18 +11,23 @@ import traceback
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-def test_arcade_installation():
-    """Test if Arcade is properly installed and working"""
-    print("Testing Arcade installation...")
+def test_dependencies():
+    """Test if all dependencies are properly installed and working"""
+    print("Testing dependencies...")
     
+    # Test Arcade 3.0.0
     try:
-        # Test basic imports
         import arcade
         print(f"✓ Arcade imported successfully")
         
         # Test version
         try:
-            version = arcade.version.VERSION
+            if hasattr(arcade, 'version'):
+                version = arcade.version.VERSION
+            elif hasattr(arcade, '__version__'):
+                version = arcade.__version__
+            else:
+                version = "Unknown"
             print(f"✓ Arcade version: {version}")
         except:
             print("? Arcade version unavailable")
@@ -34,19 +39,25 @@ def test_arcade_installation():
             ('arcade.SpriteList', arcade.SpriteList),
         ]
         
-        # Test SpriteSolidColor separately since it might not exist in some versions
-        try:
-            arcade.SpriteSolidColor
-            print("✓ arcade.SpriteSolidColor available")
-        except:
-            print("✗ arcade.SpriteSolidColor missing - will use fallbacks")
-        
         for name, cls in test_items:
             try:
                 cls
                 print(f"✓ {name} available")
             except:
                 print(f"✗ {name} missing")
+        
+        # Test Camera2D (new in 3.0.0)
+        try:
+            if hasattr(arcade, 'Camera2D'):
+                arcade.Camera2D
+                print("✓ arcade.Camera2D available")
+            elif hasattr(arcade, 'camera') and hasattr(arcade.camera, 'Camera2D'):
+                arcade.camera.Camera2D
+                print("✓ arcade.camera.Camera2D available")
+            else:
+                print("? Camera2D not found - using fallback")
+        except:
+            print("? Camera2D test failed - using fallback")
         
         # Test drawing functions
         drawing_funcs = [
@@ -61,19 +72,56 @@ def test_arcade_installation():
             else:
                 print(f"✗ arcade.{func_name} missing")
         
-        print("Arcade test complete.\n")
-        return True
+    except Exception as e:
+        print(f"✗ Arcade test failed: {e}")
+        return False
+    
+    # Test Pillow 11.0.0
+    try:
+        from PIL import Image
+        print("✓ Pillow imported successfully")
+        
+        # Test version
+        try:
+            from PIL import __version__ as pil_version
+            print(f"✓ Pillow version: {pil_version}")
+        except:
+            try:
+                import PIL
+                print(f"✓ Pillow version: {PIL.__version__}")
+            except:
+                print("? Pillow version unavailable")
+        
+        # Test basic functionality
+        test_img = Image.new('RGBA', (32, 32), (255, 0, 0, 255))
+        print("✓ Pillow basic functionality works")
         
     except Exception as e:
-        print(f"✗ Arcade installation test failed: {e}")
+        print(f"✗ Pillow test failed: {e}")
         return False
+    
+    # Test Pymunk 6.9.0 (optional - not heavily used)
+    try:
+        import pymunk
+        print("✓ Pymunk imported successfully")
+        
+        try:
+            print(f"✓ Pymunk version: {pymunk.version}")
+        except:
+            print("? Pymunk version unavailable")
+            
+    except Exception as e:
+        print(f"⚠ Pymunk test failed (optional): {e}")
+    
+    print("Dependency test complete.\n")
+    return True
 
-# Test Arcade before importing our modules
-if not test_arcade_installation():
-    print("WARNING: Arcade installation has issues. The game may not work properly.")
+# Test dependencies before importing our modules
+if not test_dependencies():
+    print("WARNING: Some dependencies have issues. The game may not work properly.")
     input("Press Enter to continue anyway, or Ctrl+C to exit...")
 
-# Now import our modules (after testing Arcade)
+# Now import our modules (after testing dependencies)
 try:
     # Import core constants first
     from src.core.constants import *
@@ -81,6 +129,7 @@ try:
     # Import core systems
     from src.core.director import Director, Scene
     from src.core.asset_manager import AssetManager
+    from src.core.arcade_compat import safe_draw_text, get_arcade_version
     from src.input.input_manager import InputManager, InputAction, InputType
     from src.save.save_manager import SaveManager, SaveData
     from src.systems.gravity import GravityManager, GravityMode
@@ -169,6 +218,13 @@ class HeavenBurnsRed(arcade.Window):
             print(f"Warning: Could not create default configs: {e}")
         
         try:
+            # Load asset manager defaults
+            self.asset_manager.load_game_assets()
+            print("✓ Assets loaded")
+        except Exception as e:
+            print(f"Warning: Asset loading error: {e}")
+        
+        try:
             # Load save data if exists
             save_slots = self.save_manager.get_save_files()
             if any(slot['exists'] for slot in save_slots):
@@ -243,7 +299,6 @@ class HeavenBurnsRed(arcade.Window):
                 fps_value = round(1/self._last_delta_time) if self._last_delta_time > 0 else 0
                 try:
                     # Try to draw FPS using compatibility layer
-                    from src.core.arcade_compat import safe_draw_text
                     safe_draw_text(
                         f"FPS: {fps_value}",
                         10, SCREEN_HEIGHT - 30,
@@ -258,9 +313,14 @@ class HeavenBurnsRed(arcade.Window):
             # Don't re-raise - this would crash the game loop
             # Instead, try to draw a simple error message
             try:
-                from src.core.arcade_compat import safe_draw_rectangle_filled, safe_draw_text
-                safe_draw_rectangle_filled(640, 360, 1280, 720, (20, 20, 20))
-                safe_draw_text("Rendering Error", 640, 360, arcade.color.RED, 48, anchor_x="center", anchor_y="center")
+                safe_draw_text(
+                    "Rendering Error", 
+                    SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2, 
+                    arcade.color.RED, 
+                    48, 
+                    anchor_x="center", 
+                    anchor_y="center"
+                )
             except:
                 pass  # If even that fails, just give up on drawing
         
@@ -285,6 +345,21 @@ class HeavenBurnsRed(arcade.Window):
             if key == arcade.key.F1:
                 self.show_fps = not self.show_fps
                 print(f"FPS display: {'ON' if self.show_fps else 'OFF'}")
+                
+            # Debug info
+            elif key == arcade.key.F2:
+                print("=== DEBUG INFO ===")
+                print(f"Arcade version: {get_arcade_version()}")
+                print(f"Current scene: {type(self.director.get_current_scene()).__name__ if self.director.get_current_scene() else 'None'}")
+                print(f"Scene stack: {self.director.get_scene_stack_info()}")
+                self.asset_manager.debug_info()
+                
+            # Toggle fullscreen
+            elif key == arcade.key.F11:
+                try:
+                    self.set_fullscreen(not self.fullscreen)
+                except Exception as e:
+                    print(f"Fullscreen toggle error: {e}")
                 
             # Pass to input manager and current scene
             self.input_manager.on_key_press(key, modifiers)
@@ -344,7 +419,7 @@ def main():
     """Main function with comprehensive error handling"""
     print("=" * 60)
     print("HEAVEN BURNS RED - Platform Game")
-    print("Fixed for Arcade 3.0.0 Compatibility")
+    print("Fixed for Arcade 3.0.0, Pillow 11.0.0, Pymunk 6.9.0")
     print("=" * 60)
     
     # Check command line arguments
@@ -353,12 +428,17 @@ def main():
             print("Usage:")
             print("  python main.py          - Run the game")
             print("  python main.py --help   - Show this help")
+            print("  python main.py --debug  - Run with debug info")
             print("Controls:")
             print("  Arrow Keys / WASD       - Navigate menus")
             print("  Enter / Space           - Select")
             print("  Escape                  - Back/Pause")
             print("  F1                      - Toggle FPS")
+            print("  F2                      - Debug info")
+            print("  F11                     - Toggle fullscreen")
             return
+        elif sys.argv[1] == '--debug':
+            print("Debug mode enabled")
         else:
             print(f"Unknown argument: {sys.argv[1]}")
             print("Use --help for usage information")
@@ -370,7 +450,7 @@ def main():
         game = HeavenBurnsRed(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
         game.setup()
         print("✓ Game started successfully")
-        print("Press F1 to toggle FPS display")
+        print("Press F1 to toggle FPS display, F2 for debug info")
         arcade.run()
     except KeyboardInterrupt:
         print("\n✓ Game interrupted by user")
@@ -390,7 +470,9 @@ def setup_project():
         'src', 'src/core', 'src/input', 'src/menu', 'src/entities',
         'src/entities/enemies', 'src/entities/items', 'src/systems',
         'src/scenes', 'src/networking', 'src/save', 'src/ui', 'src/utils',
+        'src/data', 'src/effects', 'src/combat',
         'assets', 'assets/sprites', 'assets/sprites/characters',
+        'assets/sprites/characters/portraits',
         'assets/sprites/enemies', 'assets/sprites/items', 'assets/sprites/ui',
         'assets/sounds', 'assets/sounds/sfx', 'assets/sounds/music',
         'assets/levels', 'assets/fonts',
@@ -404,7 +486,8 @@ def setup_project():
     init_dirs = [
         'src', 'src/core', 'src/input', 'src/menu', 'src/entities',
         'src/entities/enemies', 'src/entities/items', 'src/systems',
-        'src/scenes', 'src/networking', 'src/save', 'src/ui', 'src/utils'
+        'src/scenes', 'src/networking', 'src/save', 'src/ui', 'src/utils',
+        'src/data', 'src/effects', 'src/combat'
     ]
     
     for directory in init_dirs:

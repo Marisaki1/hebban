@@ -1,20 +1,20 @@
-# src/scenes/gameplay.py - Fixed for Arcade 3.0
+# src/scenes/gameplay.py - Fixed for Arcade 3.0.0
 """
-Enhanced gameplay scene with sound and particle effects - Fixed for Arcade 3.0
+Enhanced gameplay scene with sound and particle effects - Fixed for Arcade 3.0.0
 """
 
 import arcade
 import random
 from src.core.director import Scene
 from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
-from src.core.arcade_compat import safe_draw_rectangle_filled, safe_draw_text
+from src.core.arcade_compat import safe_draw_rectangle_filled, safe_draw_text, create_solid_color_sprite
 from src.entities.player import Player
 from src.entities.enemies.cancer_base import CancerEnemy
 from src.ui.hud import HUD
 from src.data.squad_data import get_character_data
 
 class GameplayScene(Scene):
-    """Main gameplay scene with all enhancements - Arcade 3.0 Compatible"""
+    """Main gameplay scene with all enhancements - Arcade 3.0.0 Compatible"""
     def __init__(self, director, input_manager):
         super().__init__(director)
         self.input_manager = input_manager
@@ -38,7 +38,7 @@ class GameplayScene(Scene):
         self.game_over = False
         self.victory = False
         
-        # Camera - Arcade 3.0 Style
+        # Camera - Arcade 3.0.0 Style
         self.camera = None
         self.gui_camera = None
         
@@ -64,9 +64,29 @@ class GameplayScene(Scene):
         
     def on_enter(self):
         """Setup gameplay scene"""
-        # Create cameras - Arcade 3.0 Style
-        self.camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
-        self.gui_camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
+        # Create cameras - Arcade 3.0.0 Style
+        try:
+            # Method 1: Try Camera2D (3.0.0 preferred)
+            self.camera = arcade.Camera2D()
+            self.gui_camera = arcade.Camera2D()
+            print("✓ Using Arcade 3.0.0 Camera2D")
+        except AttributeError:
+            try:
+                # Method 2: Try camera.Camera2D
+                self.camera = arcade.camera.Camera2D()
+                self.gui_camera = arcade.camera.Camera2D()
+                print("✓ Using arcade.camera.Camera2D")
+            except AttributeError:
+                try:
+                    # Method 3: Fallback to legacy Camera (2.6.x style)
+                    self.camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
+                    self.gui_camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
+                    print("✓ Using legacy Camera fallback")
+                except Exception as e:
+                    print(f"✗ Camera creation failed: {e}")
+                    # Create dummy camera object
+                    self.camera = type('DummyCamera', (), {'use': lambda: None})()
+                    self.gui_camera = type('DummyCamera', (), {'use': lambda: None})()
         
         # Clear any existing particle effects
         if self.particle_manager:
@@ -142,13 +162,13 @@ class GameplayScene(Scene):
         }
             
     def load_level(self, level_num: int):
-        """Load level data using proper sprite creation"""
-        # Create platforms using proper Arcade 3.0 methods
+        """Load level data using proper Arcade 3.0.0 sprite creation"""
+        # Create platforms using proper Arcade 3.0.0 methods
         platform_color = arcade.color.DARK_GRAY
         
         # Ground platforms
         for x in range(0, 2000, 200):
-            platform = arcade.SpriteSolidColor(200, 20, platform_color)
+            platform = create_solid_color_sprite(200, 20, platform_color)
             platform.center_x = x
             platform.center_y = 50
             self.platform_list.append(platform)
@@ -170,7 +190,7 @@ class GameplayScene(Scene):
         ]
         
         for x, y, width, height in platform_configs:
-            platform = arcade.SpriteSolidColor(width, height, platform_color)
+            platform = create_solid_color_sprite(width, height, platform_color)
             platform.center_x = x
             platform.center_y = y
             self.platform_list.append(platform)
@@ -192,31 +212,24 @@ class GameplayScene(Scene):
             enemy.center_x = x
             enemy.center_y = y
             
-            # Create a simple colored texture for enemy
+            # Create a simple colored texture for enemy using new system
             enemy_colors = {
                 'small': arcade.color.DARK_RED,
                 'medium': arcade.color.DARK_ORANGE,
                 'large': arcade.color.DARK_VIOLET
             }
             
-            # Use texture creation for enemy appearance
+            # Use the new sprite creation system
             try:
-                enemy.texture = arcade.Texture.create_filled(
-                    f"enemy_{size}",
-                    (int(64 * enemy.scale), int(64 * enemy.scale)),
+                enemy_sprite = create_solid_color_sprite(
+                    int(64 * enemy.scale), 
+                    int(64 * enemy.scale), 
                     enemy_colors.get(size, arcade.color.DARK_RED)
                 )
+                enemy.texture = enemy_sprite.texture
             except Exception as e:
                 print(f"Error creating enemy texture: {e}")
-                # Create emergency fallback texture
-                try:
-                    from PIL import Image
-                    size_px = int(64 * enemy.scale)
-                    image = Image.new('RGBA', (size_px, size_px), enemy_colors.get(size, arcade.color.DARK_RED) + (255,))
-                    enemy.texture = arcade.Texture(f"enemy_{size}_fallback", image)
-                except:
-                    # Ultimate fallback - just leave texture as None
-                    pass
+                # Continue without texture - enemy will still function
             
             self.enemy_list.append(enemy)
             
@@ -272,7 +285,12 @@ class GameplayScene(Scene):
                 self.sound_manager.play_sfx("game_over")
             print("Game Over!")
             # Return to main menu after delay
-            arcade.schedule(lambda dt: self.director.change_scene('main_menu'), 3.0)
+            try:
+                arcade.schedule(lambda dt: self.director.change_scene('main_menu'), 3.0)
+            except:
+                # Fallback if schedule doesn't work
+                import threading
+                threading.Timer(3.0, lambda: self.director.change_scene('main_menu')).start()
             
         # Check if all enemies defeated
         if len(self.enemy_list) == 0 and not self.victory:
@@ -290,66 +308,107 @@ class GameplayScene(Scene):
                     self.particle_manager.create_effect('sparkle', x, y)
                 
             # Spawn more enemies after a delay (for now)
-            arcade.schedule(self.spawn_next_wave, 3.0)
+            try:
+                arcade.schedule(self.spawn_next_wave, 3.0)
+            except:
+                # Fallback
+                import threading
+                threading.Timer(3.0, self.spawn_next_wave).start()
             
-    def spawn_next_wave(self, delta_time):
+    def spawn_next_wave(self, delta_time=None):
         """Spawn next wave of enemies"""
-        arcade.unschedule(self.spawn_next_wave)
+        try:
+            arcade.unschedule(self.spawn_next_wave)
+        except:
+            pass
         self.victory = False
         self.spawn_enemies()
             
     def center_camera_on_player(self):
-        """Center camera on player with bounds - Arcade 3.0 Style"""
-        # Calculate camera position
-        camera_x = self.player.center_x - SCREEN_WIDTH / 2
-        camera_y = self.player.center_y - SCREEN_HEIGHT / 2
-        
-        # Don't let camera go negative
-        camera_x = max(camera_x, 0)
-        camera_y = max(camera_y, 0)
-        
-        # Update camera position - Arcade 3.0 method
-        self.camera.move_to((camera_x, camera_y))
+        """Center camera on player with bounds - Arcade 3.0.0 Style"""
+        if not self.camera or not hasattr(self.camera, 'position'):
+            return
+            
+        try:
+            # Arcade 3.0.0 Camera2D style
+            if hasattr(self.camera, 'position'):
+                # Calculate camera position
+                camera_x = self.player.center_x
+                camera_y = self.player.center_y
+                
+                # Don't let camera go too far negative
+                camera_x = max(camera_x, SCREEN_WIDTH // 2)
+                camera_y = max(camera_y, SCREEN_HEIGHT // 2)
+                
+                # Update camera position
+                self.camera.position = (camera_x, camera_y)
+        except Exception as e:
+            print(f"Camera update error: {e}")
         
     def draw(self):
-        """Draw gameplay - Arcade 3.0 Style (NO arcade.start_render())"""
-        # Use game camera
-        self.camera.use()
+        """Draw gameplay - Arcade 3.0.0 Style"""
+        try:
+            # Use game camera
+            self.camera.use()
+            
+            # Draw game world using sprite lists
+            self.platform_list.draw()
+            self.enemy_list.draw()
+            self.player_list.draw()
+            self.item_list.draw()
+            
+            # Draw particle effects
+            if self.particle_manager:
+                self.particle_manager.draw()
+                
+        except Exception as e:
+            print(f"Game camera draw error: {e}")
+            # Fallback drawing without camera
+            try:
+                self.platform_list.draw()
+                self.enemy_list.draw()
+                self.player_list.draw()
+                self.item_list.draw()
+            except Exception as e2:
+                print(f"Fallback draw error: {e2}")
         
-        # Draw game world using sprite lists (this should work properly)
-        self.platform_list.draw()
-        self.enemy_list.draw()
-        self.player_list.draw()
-        self.item_list.draw()
+        try:
+            # Use GUI camera for HUD
+            self.gui_camera.use()
+            if self.hud:
+                self.hud.draw()
+                
+        except Exception as e:
+            print(f"GUI camera draw error: {e}")
+            # Fallback HUD drawing without camera
+            try:
+                if self.hud:
+                    self.hud.draw()
+            except Exception as e2:
+                print(f"Fallback HUD draw error: {e2}")
         
-        # Draw particle effects
-        if self.particle_manager:
-            self.particle_manager.draw()
-        
-        # Use GUI camera for HUD
-        self.gui_camera.use()
-        if self.hud:
-            self.hud.draw()
-        
-        # Draw debug info using compatibility layer
-        safe_draw_text(
-            f"Character: {self.player.character_data['name']}",
-            10, SCREEN_HEIGHT - 80,
-            arcade.color.WHITE,
-            14
-        )
-        
-        # Draw combo indicator
-        if self.player.attack_combo > 0:
-            combo_text = f"COMBO x{self.player.attack_combo}"
+        try:
+            # Draw debug info using compatibility layer
             safe_draw_text(
-                combo_text,
-                SCREEN_WIDTH // 2,
-                SCREEN_HEIGHT - 100,
-                arcade.color.YELLOW,
-                24,
-                anchor_x="center"
+                f"Character: {self.player.character_data['name']}",
+                10, SCREEN_HEIGHT - 80,
+                arcade.color.WHITE,
+                14
             )
+            
+            # Draw combo indicator
+            if self.player.attack_combo > 0:
+                combo_text = f"COMBO x{self.player.attack_combo}"
+                safe_draw_text(
+                    combo_text,
+                    SCREEN_WIDTH // 2,
+                    SCREEN_HEIGHT - 100,
+                    arcade.color.YELLOW,
+                    24,
+                    anchor_x="center"
+                )
+        except Exception as e:
+            print(f"Debug info draw error: {e}")
         
     def on_key_press(self, key, modifiers):
         """Handle key press"""

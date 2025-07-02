@@ -1,6 +1,6 @@
 # src/menu/menu_state.py
 """
-Fixed menu state that works with Arcade 3.0.0 - Uses direct drawing functions
+Fixed menu state that works with Arcade 3.0.0 - Uses updated drawing functions
 """
 import arcade
 from src.core.director import Scene
@@ -9,7 +9,7 @@ from src.input.input_manager import InputManager, InputAction
 from typing import List, Callable
 
 class MenuItem:
-    """Individual menu item with direct drawing"""
+    """Individual menu item with Arcade 3.0.0 compatible drawing"""
     def __init__(self, text: str, action: Callable, x: float, y: float):
         self.text = text
         self.action = action
@@ -21,7 +21,7 @@ class MenuItem:
         self.is_selected = False
         
     def draw(self):
-        """Draw the menu item using direct drawing functions"""
+        """Draw the menu item using Arcade 3.0.0 compatible functions"""
         # Determine colors based on state
         if self.is_selected:
             bg_color = arcade.color.CRIMSON
@@ -142,13 +142,19 @@ class MenuState(Scene):
         """Select current menu item"""
         if self.menu_items and 0 <= self.selected_index < len(self.menu_items) and not self.input_handled:
             self.input_handled = True
-            self.menu_items[self.selected_index].action()
+            try:
+                self.menu_items[self.selected_index].action()
+            except Exception as e:
+                print(f"Error executing menu action: {e}")
             
     def go_back(self):
         """Go back to previous menu"""
         if not self.input_handled:
             self.input_handled = True
-            self.director.pop_scene()
+            try:
+                self.director.pop_scene()
+            except Exception as e:
+                print(f"Error going back: {e}")
         
     def on_mouse_motion(self, x, y, dx, dy):
         """Handle mouse hover with improved selection"""
@@ -184,7 +190,10 @@ class MenuState(Scene):
                         item.is_selected = True
                     
                     # Then execute action
-                    item.action()
+                    try:
+                        item.action()
+                    except Exception as e:
+                        print(f"Error executing menu action: {e}")
                     break
                     
     def update(self, delta_time: float):
@@ -193,7 +202,7 @@ class MenuState(Scene):
         self.input_handled = False
                     
     def draw(self):
-        """Draw the menu using direct drawing functions"""
+        """Draw the menu using Arcade 3.0.0 compatible functions"""
         # Draw background
         safe_draw_rectangle_filled(
             640, 360, 1280, 720, (20, 20, 20)
@@ -210,4 +219,16 @@ class MenuState(Scene):
         
         # Draw menu items
         for item in self.menu_items:
-            item.draw()
+            try:
+                item.draw()
+            except Exception as e:
+                print(f"Error drawing menu item '{item.text}': {e}")
+                # Draw fallback text
+                safe_draw_text(
+                    item.text,
+                    item.x, item.y,
+                    arcade.color.WHITE,
+                    20,
+                    anchor_x="center",
+                    anchor_y="center"
+                )
