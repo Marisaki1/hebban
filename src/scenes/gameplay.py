@@ -1,5 +1,5 @@
 """
-Main gameplay scene for Heaven Burns Red
+Fixed gameplay scene with proper game over handling
 """
 
 import arcade
@@ -12,7 +12,7 @@ from src.data.squad_data import get_character_data
 from src.ui.hud import HUD
 
 class GameplayScene(Scene):
-    """Main gameplay scene"""
+    """Main gameplay scene with fixed game over handling"""
     
     def __init__(self, director, input_manager):
         super().__init__(director)
@@ -44,6 +44,7 @@ class GameplayScene(Scene):
         self.current_level = 1
         self.score = 0
         self.game_over = False
+        self.game_over_processed = False  # Prevent multiple game over callbacks
         self.victory = False
         self.level_timer = 0
         self.spawn_timer = 0
@@ -53,8 +54,19 @@ class GameplayScene(Scene):
         self.enemies_per_wave = 5
         self.current_wave = 1
         
+        # Scheduled callback tracking
+        self.scheduled_callbacks = []
+        
     def on_enter(self):
         """Setup gameplay scene"""
+        # Clear any existing callbacks
+        self.clear_scheduled_callbacks()
+        
+        # Reset game state
+        self.game_over = False
+        self.game_over_processed = False
+        self.victory = False
+        
         # Create cameras
         self.camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
         self.gui_camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -90,11 +102,28 @@ class GameplayScene(Scene):
         
     def on_exit(self):
         """Cleanup when leaving gameplay"""
+        # Clear scheduled callbacks
+        self.clear_scheduled_callbacks()
+        
         if self.sound_manager:
             self.sound_manager.stop_music()
         if self.particle_manager:
             self.particle_manager.clear()
             
+    def clear_scheduled_callbacks(self):
+        """Clear all scheduled callbacks to prevent conflicts"""
+        for callback in self.scheduled_callbacks:
+            try:
+                arcade.unschedule(callback)
+            except:
+                pass
+        self.scheduled_callbacks.clear()
+        
+    def schedule_callback(self, callback, delay: float):
+        """Schedule a callback and track it"""
+        self.scheduled_callbacks.append(callback)
+        arcade.schedule(callback, delay)
+        
     def on_pause(self):
         """Pause gameplay"""
         if self.sound_manager:
@@ -275,15 +304,9 @@ class GameplayScene(Scene):
         
     def check_game_conditions(self):
         """Check for win/lose conditions"""
-        # Check player death
-        if self.player.health <= 0:
-            self.game_over = True
-            if self.sound_manager:
-                self.sound_manager.stop_music()
-                self.sound_manager.play_sfx("game_over")
-                
-            # Return to main menu after delay
-            arcade.schedule(lambda dt: self.director.change_scene('main_menu'), 3.0)
+        # Check player death (only process once)
+        if self.player.health <= 0 and not self.game_over_processed:
+            self.handle_game_over()
             return
             
         # Check wave completion
@@ -291,11 +314,52 @@ class GameplayScene(Scene):
             self.complete_wave()
             
         # Check fall death
-        if self.player.center_y < -100:
+        if self.player.center_y < -100 and not self.game_over_processed:
             self.player.take_damage(self.player.health)
+            
+    def handle_game_over(self):
+        """Handle game over (called only once)"""
+        if self.game_over_processed:
+            return
+            
+        self.game_over = True
+        self.game_over_processed = True
+        
+        # Save progress before game over
+        self.save_game_progress()
+        
+        if self.sound_manager:
+            self.sound_manager.stop_music()
+            self.sound_manager.play_sfx("game_over")
+            
+        # Schedule return to main menu (only once)
+        def return_to_menu(dt):
+            self.director.change_scene('main_menu')
+            
+        self.schedule_callback(return_to_menu, 3.0)
+        print("Game Over - Returning to main menu in 3 seconds")
+        
+    def save_game_progress(self):
+        """Save current game progress"""
+        if self.save_manager and self.save_manager.current_save:
+            game_data = self.save_manager.current_save.game_data
+            progress = game_data.get('progress', {})
+            
+            # Update progress
+            progress['total_score'] = max(progress.get('total_score', 0), self.score)
+            progress['last_wave'] = self.current_wave
+            progress['play_time'] = progress.get('play_time', 0) + self.level_timer
+            
+            game_data['progress'] = progress
+            
+            # Auto-save
+            self.save_manager.save_game(1)
             
     def complete_wave(self):
         """Complete current wave and spawn next"""
+        if self.victory:
+            return
+            
         self.victory = True
         self.current_wave += 1
         
@@ -310,11 +374,13 @@ class GameplayScene(Scene):
                 self.particle_manager.create_effect('sparkle', x, y)
                 
         # Spawn next wave after delay
-        arcade.schedule(self.spawn_next_wave, 3.0)
+        def spawn_next(dt):
+            self.spawn_next_wave()
+            
+        self.schedule_callback(spawn_next, 3.0)
         
-    def spawn_next_wave(self, delta_time=None):
+    def spawn_next_wave(self):
         """Spawn next wave of enemies"""
-        arcade.unschedule(self.spawn_next_wave)
         self.victory = False
         
         # Increase difficulty
@@ -343,7 +409,7 @@ class GameplayScene(Scene):
         
     def on_key_press(self, key, modifiers):
         """Handle key press"""
-        if key == arcade.key.ESCAPE:
+        if key == arcade.key.ESCAPE and not self.game_over:
             self.director.push_scene('pause')
             
     def draw(self):
@@ -417,6 +483,16 @@ class GameplayScene(Scene):
                 SCREEN_HEIGHT // 2,
                 arcade.color.RED,
                 48,
+                anchor_x="center",
+                anchor_y="center"
+            )
+            
+            arcade.draw_text(
+                "Returning to Main Menu...",
+                SCREEN_WIDTH // 2,
+                SCREEN_HEIGHT // 2 - 60,
+                arcade.color.WHITE,
+                20,
                 anchor_x="center",
                 anchor_y="center"
             )

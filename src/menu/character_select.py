@@ -1,5 +1,5 @@
 """
-Character selection menu
+Fixed character selection menu with lobby return support
 """
 
 import arcade
@@ -297,13 +297,16 @@ class DetailedCharacterInfo:
             )
 
 class CharacterSelectMenu(MenuState):
-    """Character selection within a squad"""
+    """Character selection within a squad - Fixed for lobby support"""
     
     def __init__(self, director, input_manager, squad_data: dict):
         super().__init__(director, input_manager)
         self.squad_data = squad_data
         self.title = f"Select Character - {squad_data['name']}"
         self.scene_name = "character_select"
+        
+        # Flag for returning to lobby instead of gameplay
+        self.return_to_lobby = False
         
         # Character grid
         self.character_grid = CharacterGrid(
@@ -359,12 +362,17 @@ class CharacterSelectMenu(MenuState):
             save_manager.current_save.game_data['selected_squad'] = self.squad_data['id']
             save_manager.current_save.game_data['selected_character'] = selected_char['id']
             
-        # Check if multiplayer
-        is_multiplayer = self.director.get_system('is_multiplayer')
-        if is_multiplayer:
-            self.director.change_scene('lobby_menu')
+        # Check where to go next
+        if self.return_to_lobby:
+            # Return to lobby with updated character
+            self.director.pop_scene()  # Go back to lobby
         else:
-            self.director.change_scene('gameplay')
+            # Check if multiplayer
+            is_multiplayer = self.director.get_system('is_multiplayer')
+            if is_multiplayer:
+                self.director.change_scene('lobby_menu')
+            else:
+                self.director.change_scene('gameplay')
             
     def draw(self):
         """Draw character selection screen"""
@@ -392,8 +400,12 @@ class CharacterSelectMenu(MenuState):
         self.character_info.draw()
         
         # Instructions
+        instruction_text = "Use Arrow Keys to select, ENTER to confirm, ESC to go back"
+        if self.return_to_lobby:
+            instruction_text = "Select character for lobby, ENTER to confirm, ESC to return"
+            
         arcade.draw_text(
-            "Use Arrow Keys to select, ENTER to confirm, ESC to go back",
+            instruction_text,
             SCREEN_WIDTH // 2,
             40,
             arcade.color.WHITE,
