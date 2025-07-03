@@ -72,6 +72,11 @@ class Director:
         if scene_name not in self.scenes:
             raise ValueError(f"Scene '{scene_name}' not registered")
             
+        # FIXED: Clear input callbacks before scene transition
+        input_manager = self.systems.get('input_manager')
+        if input_manager:
+            input_manager.set_current_scene(scene_name)
+            
         # Pause current scene
         if self.scene_stack:
             current_scene = self.scene_stack[-1]
@@ -102,6 +107,11 @@ class Director:
                 
     def change_scene(self, scene_name: str):
         """Change to a new scene (clear stack)"""
+        # FIXED: Clear input callbacks before scene change
+        input_manager = self.systems.get('input_manager')
+        if input_manager:
+            input_manager.set_current_scene(scene_name)
+            
         # Exit all scenes
         while self.scene_stack:
             scene = self.scene_stack.pop()

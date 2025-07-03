@@ -74,8 +74,8 @@ class MenuState(Scene):
         
     def on_enter(self):
         """Setup input callbacks when entering menu"""
+        # FIXED: Simplified - input manager already cleared callbacks
         self.input_manager.set_current_scene(self.scene_name)
-        self.input_manager.clear_scene_callbacks(self.scene_name)
         
         # Register navigation callbacks
         self.input_manager.register_action_callback(
@@ -98,7 +98,8 @@ class MenuState(Scene):
             
     def on_exit(self):
         """Cleanup when leaving menu"""
-        self.input_manager.clear_scene_callbacks(self.scene_name)
+        # FIXED: No need to manually clear - input manager handles this
+        pass
         
     def navigate_up(self):
         """Navigate to previous menu item"""
