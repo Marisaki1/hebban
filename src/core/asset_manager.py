@@ -79,7 +79,7 @@ class AssetManager:
         button = self._create_colored_texture("button", (200, 50), (80, 80, 80), "")
         self.textures["button"] = button
         
-    def _create_colored_texture(self, name: str, size: tuple, color: tuple, text: str = "") -> arcade.Texture:
+    def _create_colored_texture(self, name: str, size: tuple, color: tuple, text: str = "") -> Optional[arcade.Texture]:
         """Create a colored texture using Pillow 11.0.0 - FIXED for Arcade 3.0.0"""
         try:
             # Create image with Pillow
@@ -107,14 +107,20 @@ class AssetManager:
                 draw.text((text_x, text_y), text, fill=(255, 255, 255, 255))
                 
             # Create Arcade texture - FIXED for Arcade 3.0.0
-            # Use create_texture method instead of constructor
-            return arcade.Texture.create_filled(name, size, color + (255,))
+            # Use proper Arcade 3.0.0 texture constructor
+            return arcade.Texture(name, image)
             
         except Exception as e:
             print(f"Error creating texture {name}: {e}")
-            # Fallback - create simple colored texture
-            return arcade.Texture.create_filled(name, size, color + (255,))
-        
+            # Fallback - create simple solid color texture
+            try:
+                fallback_image = Image.new('RGBA', size, color + (255,))
+                return arcade.Texture(name + "_fallback", fallback_image)
+            except Exception as e2:
+                print(f"Fallback texture creation failed: {e2}")
+                # Return None if all else fails
+                return None
+                
     def get_texture(self, name: str) -> Optional[arcade.Texture]:
         """Get texture by name"""
         return self.textures.get(name)
