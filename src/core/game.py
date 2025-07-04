@@ -24,6 +24,8 @@ from src.menu.continue_menu import ContinueMenu
 from src.menu.save_select_menu import SaveSelectMenu
 from src.scenes.gameplay import GameplayScene
 from src.scenes.pause import PauseMenu
+from src.scenes.networked_gameplay import NetworkedGameplayScene
+
 
 class HeavenBurnsRed(arcade.Window):
     """Main game class for Arcade 3.0.0 - Fixed startup flow"""
