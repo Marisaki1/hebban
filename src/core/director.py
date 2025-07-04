@@ -113,7 +113,8 @@ class Director:
                     scene_name = getattr(previous_scene, 'scene_name', 'unknown')
                     input_manager.set_current_scene(scene_name)
                 
-                previous_scene.on_resume()
+                # FIXED: Call on_enter() instead of on_resume() to ensure callbacks are registered
+                previous_scene.on_enter()
             except Exception as e:
                 print(f"Error resuming scene: {e}")
                 # Force fallback to main menu
