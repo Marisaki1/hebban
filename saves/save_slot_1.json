@@ -1,0 +1,25 @@
+{
+  "save_id": "1a5202b2",
+  "timestamp": "2025-07-04T09:57:28.019582",
+  "game_data": {
+    "version": "1.0.0",
+    "player_name": "Player",
+    "selected_squad": "31A",
+    "selected_character": "ruka",
+    "unlocked_squads": [
+      "31A"
+    ],
+    "progress": {
+      "current_level": 1,
+      "completed_levels": [],
+      "total_score": 0,
+      "play_time": 0
+    },
+    "settings": {
+      "master_volume": 1.0,
+      "sfx_volume": 1.0,
+      "music_volume": 1.0,
+      "controls": {}
+    }
+  }
+}

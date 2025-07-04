@@ -1,5 +1,5 @@
 """
-Fixed gameplay scene with proper game over handling
+Fixed gameplay scene with proper character loading and game over handling
 """
 
 import arcade
@@ -12,7 +12,7 @@ from src.data.squad_data import get_character_data
 from src.ui.hud import HUD
 
 class GameplayScene(Scene):
-    """Main gameplay scene with fixed game over handling"""
+    """Main gameplay scene with FIXED character loading and game over handling"""
     
     def __init__(self, director, input_manager):
         super().__init__(director)
@@ -53,18 +53,16 @@ class GameplayScene(Scene):
         self.enemies_defeated = 0
         self.enemies_per_wave = 5
         self.current_wave = 1
-        
-        # Scheduled callback tracking
-        self.scheduled_callbacks = []
+ 
+        # FIXED: Single callback tracking to prevent multiple schedules
+        self.game_over_callback_scheduled = False
         
     def on_enter(self):
         """Setup gameplay scene"""
-        # Clear any existing callbacks
-        self.clear_scheduled_callbacks()
-        
-        # Reset game state
+        # FIXED: Reset all game over states
         self.game_over = False
         self.game_over_processed = False
+        self.game_over_callback_scheduled = False
         self.victory = False
         
         # Create cameras
@@ -75,12 +73,33 @@ class GameplayScene(Scene):
         if self.particle_manager:
             self.particle_manager.clear()
             
-        # Create player
+        # FIXED: Create player with proper character loading
         character_data = self._get_selected_character()
-        self.player = Player(character_data, self.input_manager)
-        self.player.center_x = 200
-        self.player.center_y = 200
-        self.player_list.append(self.player)
+        if character_data:
+            self.player = Player(character_data, self.input_manager)
+            self.player.center_x = 200
+            self.player.center_y = 200
+            self.player_list.append(self.player)
+            
+            print(f"✓ Gameplay started with {character_data['name']} ({character_data['id']})")
+        else:
+            print("ERROR: Failed to load character data!")
+            # Fallback to default character
+            default_char = {
+                'id': 'ruka',
+                'name': 'Ruka Kayamori',
+                'health': 100,
+                'speed': 6,
+                'jump_power': 15,
+                'attack': 8,
+                'defense': 6,
+                'abilities': ['Double Jump', 'Dash Attack', 'Leadership Boost']
+            }
+            self.player = Player(default_char, self.input_manager)
+            self.player.center_x = 200
+            self.player.center_y = 200
+            self.player_list.append(self.player)
+            print("⚠ Used fallback character (Ruka)")
         
         # Create HUD
         self.hud = HUD(self.player)
@@ -98,8 +117,6 @@ class GameplayScene(Scene):
         if self.sound_manager:
             self.sound_manager.play_music("battle_theme")
             
-        print(f"Gameplay started with {character_data['name']}")
-        
     def on_exit(self):
         """Cleanup when leaving gameplay"""
         # Clear scheduled callbacks
@@ -135,26 +152,25 @@ class GameplayScene(Scene):
             self.sound_manager.resume_music()
             
     def _get_selected_character(self) -> dict:
-        """Get selected character data"""
+        """FIXED: Get selected character data from save"""
         if self.save_manager and self.save_manager.current_save:
-            squad_id = self.save_manager.current_save.game_data.get('selected_squad', '31A')
-            char_id = self.save_manager.current_save.game_data.get('selected_character', 'ruka')
+            game_data = self.save_manager.current_save.game_data
+            squad_id = game_data.get('selected_squad', '31A')
+            char_id = game_data.get('selected_character', 'ruka')
+            
+            print(f"Loading character: {char_id} from squad: {squad_id}")
             
             character = get_character_data(squad_id, char_id)
             if character:
+                print(f"✓ Successfully loaded character: {character['name']}")
                 return character
+            else:
+                print(f"ERROR: Character {char_id} not found in squad {squad_id}")
+        else:
+            print("ERROR: No save manager or save data available")
                 
-        # Default fallback
-        return {
-            'id': 'ruka',
-            'name': 'Ruka Kayamori',
-            'health': 100,
-            'speed': 6,
-            'jump_power': 15,
-            'attack': 8,
-            'defense': 6,
-            'abilities': ['Double Jump', 'Dash Attack', 'Leadership Boost']
-        }
+        # Return None to trigger fallback
+        return None
         
     def load_level(self):
         """Load level platforms and environment"""
@@ -304,7 +320,7 @@ class GameplayScene(Scene):
         
     def check_game_conditions(self):
         """Check for win/lose conditions"""
-        # Check player death (only process once)
+        # FIXED: Check player death (only process once)
         if self.player.health <= 0 and not self.game_over_processed:
             self.handle_game_over()
             return
@@ -318,12 +334,13 @@ class GameplayScene(Scene):
             self.player.take_damage(self.player.health)
             
     def handle_game_over(self):
-        """Handle game over (called only once)"""
-        if self.game_over_processed:
+        """FIXED: Handle game over (called only once)"""
+        if self.game_over_processed or self.game_over_callback_scheduled:
             return
             
         self.game_over = True
         self.game_over_processed = True
+        self.game_over_callback_scheduled = True
         
         # Save progress before game over
         self.save_game_progress()
@@ -332,11 +349,11 @@ class GameplayScene(Scene):
             self.sound_manager.stop_music()
             self.sound_manager.play_sfx("game_over")
             
-        # Schedule return to main menu (only once)
+        # FIXED: Schedule return to main menu only once
         def return_to_menu(dt):
             self.director.change_scene('main_menu')
             
-        self.schedule_callback(return_to_menu, 3.0)
+        arcade.schedule(return_to_menu, 3.0)
         print("Game Over - Returning to main menu in 3 seconds")
         
     def save_game_progress(self):
@@ -377,7 +394,7 @@ class GameplayScene(Scene):
         def spawn_next(dt):
             self.spawn_next_wave()
             
-        self.schedule_callback(spawn_next, 3.0)
+        arcade.schedule(spawn_next, 3.0)
         
     def spawn_next_wave(self):
         """Spawn next wave of enemies"""

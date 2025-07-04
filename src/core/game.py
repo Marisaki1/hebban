@@ -20,6 +20,7 @@ from src.menu.settings_menu import SettingsMenu
 from src.menu.leaderboard import LeaderboardMenu
 from src.menu.lobby_menu import LobbyMenu
 from src.menu.continue_menu import ContinueMenu
+from src.menu.save_select_menu import SaveSelectMenu
 from src.scenes.gameplay import GameplayScene
 from src.scenes.pause import PauseMenu
 
@@ -42,6 +43,7 @@ class HeavenBurnsRed(arcade.Window):
         # Game state flags
         self.is_new_game = True
         self.multiplayer_session_data = None
+        self.pending_lobby_join = None  # For Join Game flow
         
         # Register systems with director
         self.director.systems = {
@@ -64,60 +66,94 @@ class HeavenBurnsRed(arcade.Window):
         # Load game assets
         self.asset_manager.load_default_assets()
         
-        # Initialize save manager but DON'T auto-load
-        # Let the player choose New Game or Continue
+        # Initialize save manager but DON'T auto-load any saves
+        # Player must explicitly choose New Game or Continue
         
         # Register all scenes
         self._register_scenes()
         
-        # Start with main menu (no auto-loading)
+        # Start with main menu (completely fresh start)
         self.director.push_scene("main_menu")
-        print("✓ Game started - Ready for New Game or Continue")
+        print("✓ Game started - Choose New Game or Continue")
         
     def start_new_game(self):
-        """Start a completely new game"""
-        # Create fresh save data
+        """Start a completely fresh new game"""
+        # Create completely fresh save data
         self.save_manager.current_save = SaveData()
         self.is_new_game = True
         self.multiplayer_session_data = None
         
-        print("✓ Starting new game")
-        # Go to squad selection
+
+        # Reset multiplayer flags
+        self.director.systems['is_multiplayer'] = False
+        self.director.systems['game_client'] = None
+        
+        print("✓ Starting completely new game")
+        # Go to squad selection for character choice
         self.director.change_scene('squad_select')
         
-    def continue_game(self):
-        """Continue from existing save"""
+    def show_continue_menu(self):
+        """Show continue menu with save slot selection"""
         save_slots = self.save_manager.get_save_files()
         available_saves = [slot for slot in save_slots if slot['exists']]
         
         if not available_saves:
-            print("No save files found")
+
+            print("No save files found - redirecting to New Game")
+            self.start_new_game()
             return False
             
-        # For now, load the most recent save
-        # In a full implementation, show save slot selection
-        most_recent = max(available_saves, key=lambda s: s.get('timestamp', ''))
+        # Go to save selection menu
+        self.director.change_scene('save_select')
+        return True
         
-        if self.save_manager.load_game(most_recent['slot']):
+    def continue_from_save(self, slot_number: int):
+        """Continue from specific save slot"""
+        if self.save_manager.load_game(slot_number):
             self.is_new_game = False
-            print(f"✓ Loaded save from slot {most_recent['slot']}")
+            print(f"✓ Loaded save from slot {slot_number}")
+
             
             # Check if this was a multiplayer session
             game_data = self.save_manager.current_save.game_data
             if game_data.get('was_multiplayer', False):
-                # Restore multiplayer session data
+
+                # Restore multiplayer session data and go to rejoin menu
                 self.multiplayer_session_data = game_data.get('multiplayer_data', {})
                 self.director.systems['is_multiplayer'] = True
-                # Go to continue menu for multiplayer rejoin
                 self.director.change_scene('continue_menu')
             else:
-                # Single player continue - go to squad select to allow character change
-                self.director.change_scene('squad_select')
+                # Single player continue - go directly to gameplay with saved character
+                self.director.change_scene('gameplay')
             return True
         else:
-            print("Failed to load save file")
+            print(f"Failed to load save slot {slot_number}")
             return False
             
+    def start_join_game_flow(self):
+        """Start the Join Game flow - character select first, then lobby join"""
+        # Create temporary save data for multiplayer session
+        self.save_manager.current_save = SaveData()
+        self.is_new_game = True
+        
+        # Set multiplayer mode
+        self.director.systems['is_multiplayer'] = True
+        self.pending_lobby_join = True
+        
+        print("✓ Starting Join Game flow - select character first")
+        # Go to squad selection to choose character for multiplayer
+        self.director.change_scene('squad_select')
+        
+    def complete_join_game_flow(self):
+        """Complete join game flow after character selection"""
+        if self.pending_lobby_join:
+            self.pending_lobby_join = False
+            # Go to lobby in join mode
+            lobby_scene = self.director.scenes.get('lobby_menu')
+            if lobby_scene:
+                lobby_scene.set_join_mode()
+            self.director.change_scene('lobby_menu')
+
     def save_multiplayer_session(self, lobby_data: dict):
         """Save multiplayer session data for continue"""
         if self.save_manager.current_save:
@@ -143,6 +179,9 @@ class HeavenBurnsRed(arcade.Window):
             "leaderboard": LeaderboardMenu(self.director, self.input_manager),
             "lobby_menu": LobbyMenu(self.director, self.input_manager),
             "continue_menu": ContinueMenu(self.director, self.input_manager),
+
+            "save_select": SaveSelectMenu(self.director, self.input_manager),
+
             "gameplay": GameplayScene(self.director, self.input_manager),
             "pause": PauseMenu(self.director, self.input_manager),
         }

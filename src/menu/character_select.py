@@ -1,5 +1,7 @@
 """
-Fixed character selection menu with lobby return support
+
+Fixed character selection menu with proper save persistence
+
 """
 
 import arcade
@@ -297,7 +299,8 @@ class DetailedCharacterInfo:
             )
 
 class CharacterSelectMenu(MenuState):
-    """Character selection within a squad - Fixed for lobby support"""
+    """Character selection within a squad - FIXED save persistence"""
+
     
     def __init__(self, director, input_manager, squad_data: dict):
         super().__init__(director, input_manager)
@@ -353,26 +356,42 @@ class CharacterSelectMenu(MenuState):
         self.character_info.set_character(selected_char)
         
     def select_character(self):
-        """Confirm character selection"""
+        """Confirm character selection - FIXED to save properly"""
         selected_char = self.character_grid.get_selected_character()
         
-        # Save selection to save manager
+        # FIXED: Ensure proper saving to save manager
         save_manager = self.director.get_system('save_manager')
         if save_manager and save_manager.current_save:
+            # Save both squad and character data correctly
             save_manager.current_save.game_data['selected_squad'] = self.squad_data['id']
             save_manager.current_save.game_data['selected_character'] = selected_char['id']
+            
+            print(f"✓ Character selected: {selected_char['name']} ({selected_char['id']})")
+            print(f"✓ Squad selected: {self.squad_data['name']} ({self.squad_data['id']})")
+            
+            # Force save to ensure persistence
+            save_manager.save_game(1)
+        else:
+            print("ERROR: No save manager or save data available!")
             
         # Check where to go next
         if self.return_to_lobby:
             # Return to lobby with updated character
             self.director.pop_scene()  # Go back to lobby
         else:
-            # Check if multiplayer
-            is_multiplayer = self.director.get_system('is_multiplayer')
-            if is_multiplayer:
-                self.director.change_scene('lobby_menu')
+            # Check for pending lobby join (Join Game flow)
+            game_instance = self.director.get_system('game_instance')
+            if game_instance and game_instance.pending_lobby_join:
+                # Complete join game flow
+                game_instance.complete_join_game_flow()
             else:
-                self.director.change_scene('gameplay')
+                # Check if multiplayer
+                is_multiplayer = self.director.get_system('is_multiplayer')
+                if is_multiplayer:
+                    self.director.change_scene('lobby_menu')
+                else:
+                    # Single player - go to gameplay
+                    self.director.change_scene('gameplay')
             
     def draw(self):
         """Draw character selection screen"""

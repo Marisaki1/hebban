@@ -7,7 +7,8 @@ from src.menu.menu_state import MenuState, MenuItem
 from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
 class MainMenu(MenuState):
-    """Main menu with New Game/Continue options"""
+    """Main menu with proper New Game/Continue options"""
+
     
     def __init__(self, director, input_manager):
         super().__init__(director, input_manager)
@@ -78,35 +79,36 @@ class MainMenu(MenuState):
             self.menu_items[0].is_selected = True
             
     def new_game(self):
-        """Start a new game"""
+
+        """Start a completely new game"""
         game_instance = self.director.get_system('game_instance')
         if game_instance:
             game_instance.start_new_game()
         else:
-            # Fallback
-            self.director.push_scene("squad_select")
+
+            # Fallback - should not happen
+            print("Error: game_instance not found")
             
     def continue_game(self):
-        """Continue existing game"""
+        """Show save selection menu for continuing"""
         game_instance = self.director.get_system('game_instance')
         if game_instance:
-            success = game_instance.continue_game()
+            success = game_instance.show_continue_menu()
             if not success:
-                # Show error message or fall back to new game
-                print("Failed to continue - no valid saves found")
+                # No saves found, redirect to new game
+                self.new_game()
         else:
-            # Fallback
-            self.director.push_scene("squad_select")
+            # Fallback - should not happen
+            print("Error: game_instance not found")
         
     def join_game(self):
-        """Join multiplayer game"""
-        # Set multiplayer mode before going to lobby
-        self.director.systems['is_multiplayer'] = True
-        # Go to lobby menu in "join" mode
-        lobby_menu = self.director.scenes.get('lobby_menu')
-        if lobby_menu:
-            lobby_menu.set_join_mode()
-        self.director.push_scene("lobby_menu")
+        """Start Join Game flow - character select first, then lobby join"""
+        game_instance = self.director.get_system('game_instance')
+        if game_instance:
+            game_instance.start_join_game_flow()
+        else:
+            # Fallback - should not happen
+            print("Error: game_instance not found")
         
     def show_leaderboard(self):
         """Show global leaderboard"""
@@ -118,7 +120,7 @@ class MainMenu(MenuState):
         
     def exit_game(self):
         """Exit the game"""
-        # Save before exiting
+        # Save before exiting if there's current save data
         save_manager = self.director.get_system('save_manager')
         if save_manager and save_manager.current_save:
             save_manager.save_game(1)
