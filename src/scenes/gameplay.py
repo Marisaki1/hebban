@@ -120,13 +120,29 @@ class GameplayScene(Scene):
             
     def on_exit(self):
         """Cleanup when leaving gameplay"""
+        print("🚪 Exiting gameplay scene...")
+        
         # Clear scheduled callbacks
         self.clear_scheduled_callbacks()
         
+        # FIXED: Comprehensive cleanup of all game elements
+        if not self.game_over:
+            # Only clean up if we haven't already done game over cleanup
+            self.cleanup_stage()
+        
+        # Clear all sprite lists
+        self.player_list.clear()
+        self.enemy_list.clear()
+        self.platform_list.clear()
+        self.item_list.clear()
+        
+        # Stop all systems
         if self.sound_manager:
             self.sound_manager.stop_music()
         if self.particle_manager:
             self.particle_manager.clear()
+            
+        print("   ✅ Gameplay scene cleanup complete")
             
     def clear_scheduled_callbacks(self):
             """Clear all scheduled callbacks to prevent conflicts"""
@@ -239,16 +255,22 @@ class GameplayScene(Scene):
         
     def update(self, delta_time: float):
         """Update gameplay"""
+        # FIXED: Stop all updates immediately when game over
         if self.game_over:
             return
             
         # Update level timer
         self.level_timer += delta_time
         
+        # FIXED: Check player death FIRST before any other updates
+        if self.player.health <= 0 and not self.game_over_processed:
+            self.handle_game_over()
+            return  # Stop all further updates
+            
         # Update player
         self.player.update(delta_time, self.gravity_manager, self.platform_list)
         
-        # Update enemies
+        # Update enemies (only if game is still active)
         for enemy in self.enemy_list:
             enemy.update(delta_time, self.player_list, self.gravity_manager)
             
@@ -269,8 +291,8 @@ class GameplayScene(Scene):
         # Update camera
         self.update_camera()
         
-        # Check win/lose conditions
-        self.check_game_conditions()
+        # Check win/lose conditions (but not death - already checked above)
+        self.check_wave_conditions()
         
     def check_combat_collisions(self):
         """Check player-enemy combat collisions"""
@@ -322,30 +344,29 @@ class GameplayScene(Scene):
         # Apply camera position
         self.camera.move_to((camera_x, camera_y))
         
-    def check_game_conditions(self):
-        """Check for win/lose conditions"""
-        # FIXED: Check player death (only process once)
-        if self.player.health <= 0 and not self.game_over_processed:
-            self.handle_game_over()
-            return
-            
+    def check_wave_conditions(self):
+        """Check for wave completion (not player death)"""
         # Check wave completion
         if len(self.enemy_list) == 0 and not self.victory:
             self.complete_wave()
             
         # Check fall death
         if self.player.center_y < -100 and not self.game_over_processed:
+            print("Player fell off the stage!")
             self.player.take_damage(self.player.health)
             
     def handle_game_over(self):
-        """FIXED: Handle game over (called only once)"""
+        """FIXED: Handle game over with proper cleanup"""
         if self.game_over_processed:
             return
             
         self.game_over = True
         self.game_over_processed = True
         
-        print("Game Over - Returning to main menu in 3 seconds")
+        print("Game Over - Cleaning up stage and returning to main menu in 3 seconds")
+        
+        # FIXED: Immediately stop all gameplay updates
+        self.cleanup_stage()
         
         # Save progress before game over
         self.save_game_progress()
@@ -354,17 +375,14 @@ class GameplayScene(Scene):
             self.sound_manager.stop_music()
             self.sound_manager.play_sfx("game_over")
             
-        # FIXED: Use a simpler callback approach
+        # Schedule return to menu
         def return_to_menu(dt):
             try:
-                # Clear the scheduled callback first
                 arcade.unschedule(return_to_menu)
-                # Change scene
                 self.director.change_scene('main_menu')
             except Exception as e:
                 print(f"Error returning to menu: {e}")
                 
-        # Schedule only once
         arcade.schedule(return_to_menu, 3.0)
         
     def save_game_progress(self):
@@ -524,3 +542,27 @@ class GameplayScene(Scene):
                 anchor_x="center",
                 anchor_y="center"
             )
+
+    def cleanup_stage(self):
+        """Clean up all stage elements when game over"""
+        print("🧹 Cleaning up stage...")
+        
+        # Remove player from sprite lists to stop enemy targeting
+        if self.player:
+            self.player.remove_from_sprite_lists()
+            print("   ✅ Removed player from sprite lists")
+        
+        # Stop all enemy updates by clearing their target
+        for enemy in self.enemy_list:
+            enemy.target_player = None
+            enemy.ai_state = "idle"  # Stop enemy AI
+            
+        # Clear enemy spawner
+        if self.enemy_spawner:
+            self.enemy_spawner.spawn_timer = 999999  # Stop spawning
+            
+        # Clear particle effects
+        if self.particle_manager:
+            self.particle_manager.clear()
+            
+        print("   ✅ Stage cleanup complete")
