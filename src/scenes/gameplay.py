@@ -1,5 +1,5 @@
 """
-Main gameplay scene for Heaven Burns Red
+Fixed gameplay scene with proper character loading and game over handling
 """
 
 import arcade
@@ -12,7 +12,7 @@ from src.data.squad_data import get_character_data
 from src.ui.hud import HUD
 
 class GameplayScene(Scene):
-    """Main gameplay scene"""
+    """Main gameplay scene with FIXED character loading and game over handling"""
     
     def __init__(self, director, input_manager):
         super().__init__(director)
@@ -44,6 +44,7 @@ class GameplayScene(Scene):
         self.current_level = 1
         self.score = 0
         self.game_over = False
+        self.game_over_processed = False  # Prevent multiple game over callbacks
         self.victory = False
         self.level_timer = 0
         self.spawn_timer = 0
@@ -53,8 +54,17 @@ class GameplayScene(Scene):
         self.enemies_per_wave = 5
         self.current_wave = 1
         
+        # FIXED: Single callback tracking to prevent multiple schedules
+        self.game_over_callback_scheduled = False
+        
     def on_enter(self):
         """Setup gameplay scene"""
+        # FIXED: Reset all game over states
+        self.game_over = False
+        self.game_over_processed = False
+        self.game_over_callback_scheduled = False
+        self.victory = False
+        
         # Create cameras
         self.camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
         self.gui_camera = arcade.Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -63,12 +73,33 @@ class GameplayScene(Scene):
         if self.particle_manager:
             self.particle_manager.clear()
             
-        # Create player
+        # FIXED: Create player with proper character loading
         character_data = self._get_selected_character()
-        self.player = Player(character_data, self.input_manager)
-        self.player.center_x = 200
-        self.player.center_y = 200
-        self.player_list.append(self.player)
+        if character_data:
+            self.player = Player(character_data, self.input_manager)
+            self.player.center_x = 200
+            self.player.center_y = 200
+            self.player_list.append(self.player)
+            
+            print(f"✓ Gameplay started with {character_data['name']} ({character_data['id']})")
+        else:
+            print("ERROR: Failed to load character data!")
+            # Fallback to default character
+            default_char = {
+                'id': 'ruka',
+                'name': 'Ruka Kayamori',
+                'health': 100,
+                'speed': 6,
+                'jump_power': 15,
+                'attack': 8,
+                'defense': 6,
+                'abilities': ['Double Jump', 'Dash Attack', 'Leadership Boost']
+            }
+            self.player = Player(default_char, self.input_manager)
+            self.player.center_x = 200
+            self.player.center_y = 200
+            self.player_list.append(self.player)
+            print("⚠ Used fallback character (Ruka)")
         
         # Create HUD
         self.hud = HUD(self.player)
@@ -86,8 +117,6 @@ class GameplayScene(Scene):
         if self.sound_manager:
             self.sound_manager.play_music("battle_theme")
             
-        print(f"Gameplay started with {character_data['name']}")
-        
     def on_exit(self):
         """Cleanup when leaving gameplay"""
         if self.sound_manager:
@@ -106,26 +135,25 @@ class GameplayScene(Scene):
             self.sound_manager.resume_music()
             
     def _get_selected_character(self) -> dict:
-        """Get selected character data"""
+        """FIXED: Get selected character data from save"""
         if self.save_manager and self.save_manager.current_save:
-            squad_id = self.save_manager.current_save.game_data.get('selected_squad', '31A')
-            char_id = self.save_manager.current_save.game_data.get('selected_character', 'ruka')
+            game_data = self.save_manager.current_save.game_data
+            squad_id = game_data.get('selected_squad', '31A')
+            char_id = game_data.get('selected_character', 'ruka')
+            
+            print(f"Loading character: {char_id} from squad: {squad_id}")
             
             character = get_character_data(squad_id, char_id)
             if character:
+                print(f"✓ Successfully loaded character: {character['name']}")
                 return character
+            else:
+                print(f"ERROR: Character {char_id} not found in squad {squad_id}")
+        else:
+            print("ERROR: No save manager or save data available")
                 
-        # Default fallback
-        return {
-            'id': 'ruka',
-            'name': 'Ruka Kayamori',
-            'health': 100,
-            'speed': 6,
-            'jump_power': 15,
-            'attack': 8,
-            'defense': 6,
-            'abilities': ['Double Jump', 'Dash Attack', 'Leadership Boost']
-        }
+        # Return None to trigger fallback
+        return None
         
     def load_level(self):
         """Load level platforms and environment"""
@@ -275,15 +303,9 @@ class GameplayScene(Scene):
         
     def check_game_conditions(self):
         """Check for win/lose conditions"""
-        # Check player death
-        if self.player.health <= 0:
-            self.game_over = True
-            if self.sound_manager:
-                self.sound_manager.stop_music()
-                self.sound_manager.play_sfx("game_over")
-                
-            # Return to main menu after delay
-            arcade.schedule(lambda dt: self.director.change_scene('main_menu'), 3.0)
+        # FIXED: Check player death (only process once)
+        if self.player.health <= 0 and not self.game_over_processed:
+            self.handle_game_over()
             return
             
         # Check wave completion
@@ -291,11 +313,53 @@ class GameplayScene(Scene):
             self.complete_wave()
             
         # Check fall death
-        if self.player.center_y < -100:
+        if self.player.center_y < -100 and not self.game_over_processed:
             self.player.take_damage(self.player.health)
+            
+    def handle_game_over(self):
+        """FIXED: Handle game over (called only once)"""
+        if self.game_over_processed or self.game_over_callback_scheduled:
+            return
+            
+        self.game_over = True
+        self.game_over_processed = True
+        self.game_over_callback_scheduled = True
+        
+        # Save progress before game over
+        self.save_game_progress()
+        
+        if self.sound_manager:
+            self.sound_manager.stop_music()
+            self.sound_manager.play_sfx("game_over")
+            
+        # FIXED: Schedule return to main menu only once
+        def return_to_menu(dt):
+            self.director.change_scene('main_menu')
+            
+        arcade.schedule(return_to_menu, 3.0)
+        print("Game Over - Returning to main menu in 3 seconds")
+        
+    def save_game_progress(self):
+        """Save current game progress"""
+        if self.save_manager and self.save_manager.current_save:
+            game_data = self.save_manager.current_save.game_data
+            progress = game_data.get('progress', {})
+            
+            # Update progress
+            progress['total_score'] = max(progress.get('total_score', 0), self.score)
+            progress['last_wave'] = self.current_wave
+            progress['play_time'] = progress.get('play_time', 0) + self.level_timer
+            
+            game_data['progress'] = progress
+            
+            # Auto-save
+            self.save_manager.save_game(1)
             
     def complete_wave(self):
         """Complete current wave and spawn next"""
+        if self.victory:
+            return
+            
         self.victory = True
         self.current_wave += 1
         
@@ -310,11 +374,13 @@ class GameplayScene(Scene):
                 self.particle_manager.create_effect('sparkle', x, y)
                 
         # Spawn next wave after delay
-        arcade.schedule(self.spawn_next_wave, 3.0)
+        def spawn_next(dt):
+            self.spawn_next_wave()
+            
+        arcade.schedule(spawn_next, 3.0)
         
-    def spawn_next_wave(self, delta_time=None):
+    def spawn_next_wave(self):
         """Spawn next wave of enemies"""
-        arcade.unschedule(self.spawn_next_wave)
         self.victory = False
         
         # Increase difficulty
@@ -343,7 +409,7 @@ class GameplayScene(Scene):
         
     def on_key_press(self, key, modifiers):
         """Handle key press"""
-        if key == arcade.key.ESCAPE:
+        if key == arcade.key.ESCAPE and not self.game_over:
             self.director.push_scene('pause')
             
     def draw(self):
@@ -417,6 +483,16 @@ class GameplayScene(Scene):
                 SCREEN_HEIGHT // 2,
                 arcade.color.RED,
                 48,
+                anchor_x="center",
+                anchor_y="center"
+            )
+            
+            arcade.draw_text(
+                "Returning to Main Menu...",
+                SCREEN_WIDTH // 2,
+                SCREEN_HEIGHT // 2 - 60,
+                arcade.color.WHITE,
+                20,
                 anchor_x="center",
                 anchor_y="center"
             )
