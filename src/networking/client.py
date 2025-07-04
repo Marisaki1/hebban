@@ -1,6 +1,6 @@
-# src/networking/client.py
+# src/networking/client.py - Fixed version
 """
-WebSocket game client for multiplayer
+WebSocket game client for multiplayer - FIXED
 """
 
 import asyncio
@@ -10,7 +10,7 @@ from typing import Dict, Set, Optional, Callable
 from src.networking.protocol import NetworkProtocol, MessageType
 
 class GameClient:
-    """WebSocket game client for multiplayer"""
+    """WebSocket game client for multiplayer - FIXED"""
     
     def __init__(self):
         self.websocket = None
@@ -119,14 +119,15 @@ class GameClient:
             except Exception as e:
                 print(f"Failed to send message: {e}")
                 
-    async def create_lobby(self, lobby_code: str, max_players: int = 6):
-        """Create new lobby"""
+    async def create_lobby_with_character(self, lobby_code: str, max_players: int = 6, character_data: dict = None):
+        """Create new lobby with character data"""
         await self.send_message(
             NetworkProtocol.create_message(
                 MessageType.CREATE_LOBBY,
                 {
                     'lobby_code': lobby_code,
-                    'max_players': max_players
+                    'max_players': max_players,
+                    'character': character_data
                 }
             )
         )

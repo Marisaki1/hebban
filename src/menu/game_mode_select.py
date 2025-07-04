@@ -1,5 +1,6 @@
+# src/menu/game_mode_select.py - Fixed to handle previous scene properly
 """
-Game mode selection menu (Single Player vs Multiplayer)
+Fixed game mode selection menu with proper back navigation
 """
 
 import arcade
@@ -7,7 +8,7 @@ from src.menu.menu_state import MenuState, MenuItem
 from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
 class GameModeSelectMenu(MenuState):
-    """Choose between Single Player and Multiplayer"""
+    """Choose between Single Player and Multiplayer - FIXED"""
     
     def __init__(self, director, input_manager):
         super().__init__(director, input_manager)
@@ -32,8 +33,8 @@ class GameModeSelectMenu(MenuState):
                 menu_y_start - menu_spacing
             ),
             MenuItem(
-                "Back to Character Select",
-                self.go_back,
+                "Back to Stage Select",
+                self.go_back_to_stage,
                 SCREEN_WIDTH // 2,
                 menu_y_start - menu_spacing * 2
             )
@@ -53,6 +54,11 @@ class GameModeSelectMenu(MenuState):
         # Set multiplayer mode and go to lobby
         self.director.systems['is_multiplayer'] = True
         self.director.change_scene('lobby_menu')
+        
+    def go_back_to_stage(self):
+        """FIXED: Go back to day select instead of character select"""
+        # Pop this scene to go back to day select
+        self.director.pop_scene()
         
     def draw(self):
         """Draw game mode selection"""
@@ -87,3 +93,20 @@ class GameModeSelectMenu(MenuState):
             14,
             anchor_x="center"
         )
+        
+        # Show selected stage info
+        save_manager = self.director.get_system('save_manager')
+        if save_manager and save_manager.current_save:
+            stage_info = save_manager.current_save.game_data.get('selected_stage', {})
+            if stage_info:
+                chapter_id = stage_info.get('chapter_id', '')
+                day_id = stage_info.get('day_id', '')
+                
+                arcade.draw_text(
+                    f"Selected: {chapter_id.title()} - {day_id.title()}",
+                    SCREEN_WIDTH // 2,
+                    100,
+                    arcade.color.YELLOW,
+                    14,
+                    anchor_x="center"
+                )

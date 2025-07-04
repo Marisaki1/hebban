@@ -7,6 +7,8 @@ from src.core.constants import FPS
 from src.core.director import Director
 from src.core.asset_manager import AssetManager
 from src.input.input_manager import InputManager
+from src.menu.chapter_select import ChapterSelectMenu
+from src.menu.day_select import DaySelectMenu
 from src.menu.game_mode_select import GameModeSelectMenu
 from src.save.save_manager import SaveManager, SaveData
 from src.systems.gravity import GravityManager
@@ -186,6 +188,8 @@ class HeavenBurnsRed(arcade.Window):
             "save_select": SaveSelectMenu(self.director, self.input_manager),
             "gameplay": GameplayScene(self.director, self.input_manager),
             "pause": PauseMenu(self.director, self.input_manager),
+            "chapter_select": ChapterSelectMenu(self.director, self.input_manager),
+            "day_select": DaySelectMenu,
         }
         
         for name, scene in scenes.items():

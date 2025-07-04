@@ -1,7 +1,6 @@
+# src/menu/character_select.py - Fixed with mouse support
 """
-
-Fixed character selection menu with proper save persistence
-
+Fixed character selection menu with proper save persistence and mouse support
 """
 
 import arcade
@@ -10,7 +9,7 @@ from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 from src.input.input_manager import InputAction
 
 class CharacterGrid:
-    """3x2 character selection grid"""
+    """3x2 character selection grid with mouse support"""
     
     def __init__(self, x: float, y: float, characters: list):
         self.x = x
@@ -37,7 +36,8 @@ class CharacterGrid:
                 'x': cell_x,
                 'y': cell_y,
                 'index': i,
-                'selected': i == 0
+                'selected': i == 0,
+                'hovered': False
             })
             
     def move_selection(self, direction: str):
@@ -60,6 +60,33 @@ class CharacterGrid:
             self.grid_cells[old_index]['selected'] = False
             self.grid_cells[self.selected_index]['selected'] = True
             
+            # Clear all hovers when using keyboard
+            for cell in self.grid_cells:
+                cell['hovered'] = False
+                
+    def get_cell_at_position(self, x: float, y: float) -> int:
+        """Get cell index at mouse position"""
+        for cell in self.grid_cells:
+            half_width = self.cell_width / 2
+            half_height = self.cell_height / 2
+            if (cell['x'] - half_width <= x <= cell['x'] + half_width and
+                cell['y'] - half_height <= y <= cell['y'] + half_height):
+                return cell['index']
+        return -1
+        
+    def set_hover(self, x: float, y: float):
+        """Set hover state based on mouse position"""
+        hovered_index = self.get_cell_at_position(x, y)
+        
+        for i, cell in enumerate(self.grid_cells):
+            cell['hovered'] = (i == hovered_index)
+            
+        # Update selection if hovering
+        if hovered_index >= 0 and hovered_index != self.selected_index:
+            self.grid_cells[self.selected_index]['selected'] = False
+            self.selected_index = hovered_index
+            self.grid_cells[self.selected_index]['selected'] = True
+            
     def get_selected_character(self) -> dict:
         """Get currently selected character"""
         return self.characters[self.selected_index]
@@ -71,6 +98,9 @@ class CharacterGrid:
             if cell['selected']:
                 bg_color = arcade.color.CRIMSON
                 border_width = 3
+            elif cell['hovered']:
+                bg_color = arcade.color.DARK_RED
+                border_width = 2
             else:
                 bg_color = arcade.color.DARK_GRAY
                 border_width = 1
@@ -299,9 +329,8 @@ class DetailedCharacterInfo:
             )
 
 class CharacterSelectMenu(MenuState):
-    """Character selection within a squad - FIXED save persistence"""
+    """Character selection within a squad - FIXED save persistence and mouse support"""
 
-    
     def __init__(self, director, input_manager, squad_data: dict):
         super().__init__(director, input_manager)
         self.squad_data = squad_data
@@ -349,6 +378,26 @@ class CharacterSelectMenu(MenuState):
             InputAction.BACK, self.go_back, self.scene_name
         )
         
+    def on_mouse_motion(self, x, y, dx, dy):
+        """Handle mouse motion"""
+        # Update grid hover
+        self.character_grid.set_hover(x, y)
+        
+        # Update character info based on hover
+        selected_char = self.character_grid.get_selected_character()
+        self.character_info.set_character(selected_char)
+        
+    def on_mouse_press(self, x, y, button, modifiers):
+        """Handle mouse click"""
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            # Check if clicking on a character cell
+            clicked_index = self.character_grid.get_cell_at_position(x, y)
+            if clicked_index >= 0:
+                # If clicking on already selected character, confirm selection
+                if clicked_index == self.character_grid.selected_index:
+                    self.select_character()
+                # Otherwise just select it (already done by hover)
+                    
     def navigate_grid(self, direction: str):
         """Navigate character grid"""
         self.character_grid.move_selection(direction)
@@ -356,7 +405,7 @@ class CharacterSelectMenu(MenuState):
         self.character_info.set_character(selected_char)
         
     def select_character(self):
-        """Confirm character selection - FIXED to go to game mode select"""
+        """Confirm character selection - FIXED to go to chapter select"""
         selected_char = self.character_grid.get_selected_character()
         
         # FIXED: Ensure proper saving to save manager
@@ -385,8 +434,8 @@ class CharacterSelectMenu(MenuState):
                 # Complete join game flow
                 game_instance.complete_join_game_flow()
             else:
-                # FIXED: Go to game mode selection instead of direct gameplay
-                self.director.change_scene('game_mode_select')
+                # FIXED: Go to chapter selection instead of game mode
+                self.director.change_scene('chapter_select')
             
     def draw(self):
         """Draw character selection screen"""
@@ -414,9 +463,9 @@ class CharacterSelectMenu(MenuState):
         self.character_info.draw()
         
         # Instructions
-        instruction_text = "Use Arrow Keys to select, ENTER to confirm, ESC to go back"
+        instruction_text = "Use Arrow Keys or Mouse to select, ENTER/Click to confirm, ESC to go back"
         if self.return_to_lobby:
-            instruction_text = "Select character for lobby, ENTER to confirm, ESC to return"
+            instruction_text = "Select character for lobby, ENTER/Click to confirm, ESC to return"
             
         arcade.draw_text(
             instruction_text,
