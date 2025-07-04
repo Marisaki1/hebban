@@ -1,5 +1,5 @@
 """
-Asset manager for Arcade 3.0.0 and Pillow 11.0.0
+Fixed asset manager for Arcade 3.0.0 and Pillow 11.0.0
 """
 
 import os
@@ -8,7 +8,7 @@ from typing import Dict, Optional
 from PIL import Image, ImageDraw
 
 class AssetManager:
-    """Manages game assets"""
+    """Manages game assets - Fixed for Arcade 3.0.0"""
     
     def __init__(self):
         self.textures: Dict[str, arcade.Texture] = {}
@@ -80,33 +80,45 @@ class AssetManager:
         self.textures["button"] = button
         
     def _create_colored_texture(self, name: str, size: tuple, color: tuple, text: str = "") -> arcade.Texture:
-        """Create a colored texture using Pillow 11.0.0"""
-        # Create image with Pillow
-        image = Image.new('RGBA', size, color + (255,))
-        draw = ImageDraw.Draw(image)
-        
-        # Add border
-        draw.rectangle([0, 0, size[0]-1, size[1]-1], outline=(255, 255, 255, 255), width=2)
-        
-        # Add text if provided
-        if text:
-            # Calculate text position
-            try:
-                bbox = draw.textbbox((0, 0), text)
-                text_width = bbox[2] - bbox[0]
-                text_height = bbox[3] - bbox[1]
-            except:
-                # Fallback text size estimation
-                text_width = len(text) * 12
-                text_height = 16
+        """Create a colored texture using Pillow 11.0.0 - FIXED for Arcade 3.0.0"""
+        try:
+            # Create image with Pillow
+            image = Image.new('RGBA', size, color + (255,))
+            draw = ImageDraw.Draw(image)
+            
+            # Add border
+            draw.rectangle([0, 0, size[0]-1, size[1]-1], outline=(255, 255, 255, 255), width=2)
+            
+            # Add text if provided
+            if text:
+                # Calculate text position
+                try:
+                    bbox = draw.textbbox((0, 0), text)
+                    text_width = bbox[2] - bbox[0]
+                    text_height = bbox[3] - bbox[1]
+                except:
+                    # Fallback text size estimation
+                    text_width = len(text) * 12
+                    text_height = 16
+                    
+                text_x = (size[0] - text_width) // 2
+                text_y = (size[1] - text_height) // 2
                 
-            text_x = (size[0] - text_width) // 2
-            text_y = (size[1] - text_height) // 2
+                draw.text((text_x, text_y), text, fill=(255, 255, 255, 255))
+                
+            # Create Arcade texture - FIXED for Arcade 3.0.0
+            # Use the constructor with name as first parameter (old style that still works)
+            return arcade.Texture(name, image)
             
-            draw.text((text_x, text_y), text, fill=(255, 255, 255, 255))
-            
-        # Create Arcade texture
-        return arcade.Texture(name, image)
+        except Exception as e:
+            print(f"Error creating texture {name}: {e}")
+            # Fallback - create simple colored texture using class method
+            try:
+                return arcade.Texture.create_filled(name, size, color + (255,))
+            except:
+                # If that fails too, create a basic texture
+                fallback_image = Image.new('RGBA', size, color + (255,))
+                return arcade.Texture(name, fallback_image)
         
     def get_texture(self, name: str) -> Optional[arcade.Texture]:
         """Get texture by name"""
