@@ -79,14 +79,12 @@ class MainMenu(MenuState):
             self.menu_items[0].is_selected = True
             
     def new_game(self):
-
         """Start a completely new game"""
+        print("NEW GAME button pressed")
         game_instance = self.director.get_system('game_instance')
         if game_instance:
             game_instance.start_new_game()
         else:
-
-            # Fallback - should not happen
             print("Error: game_instance not found")
             
     def continue_game(self):

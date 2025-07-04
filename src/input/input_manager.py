@@ -88,9 +88,15 @@ class InputManager:
         """Handle key press - FIXED to only trigger current scene callbacks"""
         self.pressed_keys.add(key)
         
+        # Debug logging
+        if key == arcade.key.ESCAPE:
+            print(f"ESC pressed - Current scene: {self.current_scene}")
+            print(f"Available callbacks: {list(self.current_scene_callbacks.keys())}")
+        
         # FIXED: Only trigger callbacks for current scene
         for action, keys in self.input_mappings.items():
             if key in keys and action in self.current_scene_callbacks:
+                print(f"Triggering action: {action.value}")
                 # Execute all callbacks for this action
                 for callback in self.current_scene_callbacks[action]:
                     try:

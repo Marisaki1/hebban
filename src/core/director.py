@@ -90,35 +90,72 @@ class Director:
     def pop_scene(self):
         """Pop the current scene from the stack"""
         if not self.scene_stack:
+            print("Warning: Trying to pop from empty scene stack")
             return
             
         # Exit current scene
         current_scene = self.scene_stack.pop()
-        current_scene.on_exit()
+        try:
+            current_scene.on_exit()
+        except Exception as e:
+            print(f"Error exiting scene: {e}")
         
         # Resume previous scene or fall back
         if self.scene_stack:
             previous_scene = self.scene_stack[-1]
-            previous_scene.on_resume()
+            print(f"Resuming scene: {previous_scene.__class__.__name__}")
+            try:
+                # Clear input manager and set to previous scene
+                input_manager = self.systems.get('input_manager')
+                if input_manager:
+                    input_manager.clear_all_callbacks()
+                    # Get scene name from class or fallback
+                    scene_name = getattr(previous_scene, 'scene_name', 'unknown')
+                    input_manager.set_current_scene(scene_name)
+                
+                previous_scene.on_resume()
+            except Exception as e:
+                print(f"Error resuming scene: {e}")
+                # Force fallback to main menu
+                self.change_scene('main_menu')
         else:
-            # Fall back to main menu
+            # Stack is empty - fall back to main menu
+            print("Scene stack empty, falling back to main menu")
             if self.fallback_scene in self.scenes:
                 self.push_scene(self.fallback_scene)
+            else:
+                print("ERROR: No fallback scene available!")
                 
     def change_scene(self, scene_name: str):
         """Change to a new scene (clear stack)"""
-        # FIXED: Clear input callbacks before scene change
+        if scene_name not in self.scenes:
+            raise ValueError(f"Scene '{scene_name}' not registered")
+        
+        # FIXED: Clear input callbacks BEFORE scene changes
         input_manager = self.systems.get('input_manager')
         if input_manager:
+            input_manager.clear_all_callbacks()
             input_manager.set_current_scene(scene_name)
-            
+        
         # Exit all scenes
         while self.scene_stack:
             scene = self.scene_stack.pop()
-            scene.on_exit()
-            
+            try:
+                scene.on_exit()
+            except Exception as e:
+                print(f"Error exiting scene: {e}")
+        
         # Push new scene
-        self.push_scene(scene_name)
+        try:
+            new_scene = self.scenes[scene_name]
+            self.scene_stack.append(new_scene)
+            new_scene.on_enter()
+        except Exception as e:
+            print(f"Error entering scene {scene_name}: {e}")
+            # Fallback to main menu
+            if scene_name != "main_menu" and "main_menu" in self.scenes:
+                self.scene_stack.append(self.scenes["main_menu"])
+                self.scenes["main_menu"].on_enter()
         
     def get_current_scene(self) -> Optional[Scene]:
         """Get the current active scene"""

@@ -54,7 +54,11 @@ class SettingsMenu(MenuState):
         
     def on_enter(self):
         """Setup settings-specific controls"""
+        print(f"Entering settings scene")
         super().on_enter()
+        
+        # ENSURE scene name is set
+        self.scene_name = "settings"
         
         self.input_manager.clear_scene_callbacks(self.scene_name)
         

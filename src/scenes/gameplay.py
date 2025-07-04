@@ -339,12 +339,13 @@ class GameplayScene(Scene):
             
     def handle_game_over(self):
         """FIXED: Handle game over (called only once)"""
-        if self.game_over_processed or self.game_over_callback_scheduled:
+        if self.game_over_processed:
             return
             
         self.game_over = True
         self.game_over_processed = True
-        self.game_over_callback_scheduled = True
+        
+        print("Game Over - Returning to main menu in 3 seconds")
         
         # Save progress before game over
         self.save_game_progress()
@@ -353,12 +354,18 @@ class GameplayScene(Scene):
             self.sound_manager.stop_music()
             self.sound_manager.play_sfx("game_over")
             
-        # FIXED: Schedule return to main menu only once
+        # FIXED: Use a simpler callback approach
         def return_to_menu(dt):
-            self.director.change_scene('main_menu')
-            
+            try:
+                # Clear the scheduled callback first
+                arcade.unschedule(return_to_menu)
+                # Change scene
+                self.director.change_scene('main_menu')
+            except Exception as e:
+                print(f"Error returning to menu: {e}")
+                
+        # Schedule only once
         arcade.schedule(return_to_menu, 3.0)
-        print("Game Over - Returning to main menu in 3 seconds")
         
     def save_game_progress(self):
         """Save current game progress"""

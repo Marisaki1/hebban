@@ -134,9 +134,16 @@ class MenuState(Scene):
     def go_back(self):
         """Go back to previous menu"""
         try:
+            print(f"Going back from {self.scene_name}")
+            # Don't clear callbacks here - let director handle it
             self.director.pop_scene()
         except Exception as e:
             print(f"Error going back: {e}")
+            # Force fallback to main menu
+            try:
+                self.director.change_scene('main_menu')
+            except Exception as e2:
+                print(f"Critical error: Cannot return to main menu: {e2}")
             
     def on_mouse_motion(self, x, y, dx, dy):
         """Handle mouse hover"""

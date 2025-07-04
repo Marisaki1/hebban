@@ -87,7 +87,11 @@ class LeaderboardMenu(MenuState):
         
     def on_enter(self):
         """Setup leaderboard controls"""
+        print(f"Entering leaderboard scene")
         super().on_enter()
+        
+        # ENSURE scene name is set
+        self.scene_name = "leaderboard"
         
         self.input_manager.clear_scene_callbacks(self.scene_name)
         
