@@ -1,6 +1,6 @@
 # src/menu/lobby_menu.py
 """
-Fixed multiplayer lobby menu with REAL networking
+Fixed multiplayer lobby menu with proper state management
 """
 
 import arcade
@@ -12,7 +12,7 @@ from src.input.input_manager import InputAction
 from src.networking.network_manager import NetworkManager
 
 class LobbyCodeInput:
-    """Lobby code input widget"""
+    """Lobby code input widget - NUMERIC ONLY"""
     
     def __init__(self, x: float, y: float):
         self.x = x
@@ -25,13 +25,13 @@ class LobbyCodeInput:
         self.cursor_timer = 0
         
     def is_valid_code(self) -> bool:
-        """Check if code is valid format"""
-        return len(self.code) == self.max_length and self.code.isalnum()
+        """Check if code is valid format - 6 digits"""
+        return len(self.code) == self.max_length and self.code.isdigit()
         
     def add_character(self, char: str):
-        """Add character to code"""
-        if len(self.code) < self.max_length and char.isalnum():
-            self.code += char.upper()
+        """Add character to code - NUMBERS ONLY"""
+        if len(self.code) < self.max_length and char.isdigit():
+            self.code += char
             
     def remove_character(self):
         """Remove last character"""
@@ -67,7 +67,7 @@ class LobbyCodeInput:
             display_text += "_"
             
         arcade.draw_text(
-            display_text or "Enter Code",
+            display_text or "Enter 6-Digit Code",
             self.x, self.y,
             arcade.color.WHITE if self.code else arcade.color.GRAY,
             24,
@@ -76,22 +76,22 @@ class LobbyCodeInput:
         )
 
 class LobbyMenu(MenuState):
-    """Multiplayer lobby menu with REAL networking"""
+    """Fixed multiplayer lobby menu with proper state management"""
     
     def __init__(self, director, input_manager):
         super().__init__(director, input_manager)
         self.title = "Multiplayer Lobby"
-        self.scene_name = "lobby"
+        self.scene_name = "lobby_menu"
         
         # Network manager
-        self.network_manager = NetworkManager()
+        self.network_manager = None
         
         # Connection settings
-        self.server_host = "192.168.100.5"  # Change to your IP for internet play
+        self.server_host = "192.168.100.5"  # Your default server
         self.server_port = 8080
         
         # Lobby state
-        self.mode = "browser"  # "browser", "host", "join", "in_lobby", "connecting"
+        self.mode = "browser"  # "browser", "host", "join", "in_lobby", "connecting", "server_input"
         self.is_host = False
         self.lobby_code = None
         self.connected_players = []
@@ -105,14 +105,72 @@ class LobbyMenu(MenuState):
         
         # Server input for internet play
         self.server_input_active = False
-        self.server_input = self.server_host
+        self.server_input = f"{self.server_host}:{self.server_port}"
         
-        # Setup network callbacks
-        self._setup_network_callbacks()
+        # Connection check callback reference
+        self.connection_check_callback = None
         
-        # Setup initial state
+        # Initialize menu
         self.setup_browser_menu()
         
+    def on_enter(self):
+        """Setup lobby when entering scene"""
+        super().on_enter()
+        print(f"Entering lobby menu - current mode: {self.mode}")
+        
+        # Set player name from save data
+        save_manager = self.director.get_system('save_manager')
+        if save_manager and save_manager.current_save:
+            game_data = save_manager.current_save.game_data
+            player_name = game_data.get('player_name', 'Player')
+        else:
+            player_name = 'Player'
+            
+        # Initialize network manager if needed
+        if not self.network_manager:
+            self.network_manager = NetworkManager()
+            self.network_manager.player_name = player_name
+            self._setup_network_callbacks()
+            
+            # Store in director for other scenes
+            self.director.systems['network_manager'] = self.network_manager
+            
+        # Connect to server if not connected
+        if not self.network_manager.is_connected:
+            self.start_connection()
+            
+    def start_connection(self):
+        """Start connection to server"""
+        self.mode = "connecting"
+        self.connection_status = f"Connecting to {self.server_host}:{self.server_port}..."
+        
+        # Clear any existing connection check
+        if self.connection_check_callback:
+            arcade.unschedule(self.connection_check_callback)
+            
+        # Start connection
+        self.network_manager.start(self.server_host, self.server_port)
+        
+        # Schedule connection check
+        self.connection_check_callback = self._check_connection
+        arcade.schedule(self.connection_check_callback, 0.5)
+        
+    def _check_connection(self, dt):
+        """Check if connected to server"""
+        if self.network_manager.is_connected:
+            self.connection_status = "Connected to server"
+            arcade.unschedule(self.connection_check_callback)
+            self.connection_check_callback = None
+            
+            # Switch to browser mode
+            self.mode = "browser"
+            self.setup_browser_menu()
+            
+            print("✓ Connected to server - menu enabled")
+        else:
+            # Still trying to connect
+            self.connection_status = f"Connecting to {self.server_host}:{self.server_port}..."
+            
     def _setup_network_callbacks(self):
         """Setup network event callbacks"""
         self.network_manager.set_lobby_update_callback(self._on_lobby_update)
@@ -122,6 +180,8 @@ class LobbyMenu(MenuState):
         
     def _on_lobby_update(self, data: dict):
         """Handle lobby update from server"""
+        print(f"Lobby update received: {data}")
+        
         if 'error' in data:
             self.connection_status = f"Error: {data['error']}"
             print(f"Lobby error: {data['error']}")
@@ -130,6 +190,7 @@ class LobbyMenu(MenuState):
             return
             
         # Update lobby info
+        self.lobby_code = data.get('code', self.lobby_code)
         self.connected_players = data.get('players', [])
         self.is_host = (data.get('host_id') == self.network_manager.player_id)
         
@@ -137,6 +198,13 @@ class LobbyMenu(MenuState):
         self.ready_states = {}
         for player in self.connected_players:
             self.ready_states[player['id']] = player.get('ready', False)
+            
+        # Ensure we're in lobby mode
+        if self.mode != "in_lobby":
+            self.mode = "in_lobby"
+            self.menu_items = []  # Clear menu items when in lobby
+            
+        print(f"✓ In lobby {self.lobby_code} with {len(self.connected_players)} players")
             
     def _on_game_start(self, data: dict):
         """Handle game start from server"""
@@ -156,13 +224,18 @@ class LobbyMenu(MenuState):
             }
             game_instance.save_multiplayer_session(lobby_data)
             
+        # Set multiplayer flag
+        self.director.systems['is_multiplayer'] = True
+        
         # Start networked gameplay
+        print("Starting networked gameplay...")
         self.director.change_scene('gameplay')
         
     def _on_disconnect(self, data: dict):
         """Handle disconnection from server"""
         self.connection_status = "Disconnected from server"
         self.mode = "browser"
+        self.network_manager.is_connected = False
         self.setup_browser_menu()
         
     def _on_host_change(self, data: dict):
@@ -172,112 +245,86 @@ class LobbyMenu(MenuState):
             self.is_host = True
             self.connection_status = "You are now the host!"
             
-    def on_enter(self):
-        """Setup lobby and connect to server"""
-        super().on_enter()
-        
-        # Set player name from save data
-        save_manager = self.director.get_system('save_manager')
-        if save_manager and save_manager.current_save:
-            game_data = save_manager.current_save.game_data
-            self.network_manager.player_name = game_data.get('player_name', 'Player')
-            
-        # Connect to server if not connected
-        if not self.network_manager.is_connected:
-            self.mode = "connecting"
-            self.connection_status = f"Connecting to {self.server_host}:{self.server_port}..."
-            self.network_manager.start(self.server_host, self.server_port)
-            
-            # Schedule connection check
-            arcade.schedule(self._check_connection, 1.0)
-            
-    def _check_connection(self, dt):
-        """Check if connected to server"""
-        if self.network_manager.is_connected:
-            self.connection_status = "Connected to server"
-            self.mode = "browser"
-            arcade.unschedule(self._check_connection)
-        else:
-            self.connection_status = f"Failed to connect to {self.server_host}:{self.server_port}"
-            self.mode = "browser"
-            arcade.unschedule(self._check_connection)
-            
     def on_exit(self):
         """Cleanup when leaving lobby"""
-        # Leave lobby if in one
-        if self.lobby_code:
-            self.network_manager.leave_lobby()
-            
-        # Don't disconnect from server - keep connection for later
+        print("Exiting lobby menu")
         
-    def set_join_mode(self):
-        """Set lobby to join mode"""
-        self.mode = "join"
-        self.setup_join_mode()
+        # Unschedule connection check if active
+        if self.connection_check_callback:
+            arcade.unschedule(self.connection_check_callback)
+            self.connection_check_callback = None
+            
+        # Leave lobby if in one
+        if self.lobby_code and self.network_manager:
+            self.network_manager.leave_lobby()
+            self.lobby_code = None
+            
+        # Reset state
+        self.mode = "browser"
         
     def setup_browser_menu(self):
         """Setup initial lobby browser menu"""
+        print(f"Setting up browser menu - connected: {self.network_manager.is_connected if self.network_manager else False}")
+        
         self.mode = "browser"
         menu_y_start = 400
         menu_spacing = 70
         
-        menu_items = [
-            MenuItem(
-                "Host Lobby",
-                self.host_lobby,
-                SCREEN_WIDTH // 2,
-                menu_y_start
-            ),
-            MenuItem(
-                "Join with Code",
-                self.show_join_input,
-                SCREEN_WIDTH // 2,
-                menu_y_start - menu_spacing
-            ),
-            MenuItem(
-                "Change Server",
-                self.show_server_input,
-                SCREEN_WIDTH // 2,
-                menu_y_start - menu_spacing * 2
-            ),
-            MenuItem(
-                "Back",
-                self.go_back,
-                SCREEN_WIDTH // 2,
-                menu_y_start - menu_spacing * 3
-            )
-        ]
-        
-        # Only enable host/join if connected
-        if not self.network_manager.is_connected:
-            menu_items[0].action = lambda: None  # Disable host
-            menu_items[1].action = lambda: None  # Disable join
-            
-        self.menu_items = menu_items
-        
-        if self.menu_items:
-            self.menu_items[0].is_selected = True
-            
-    def setup_join_mode(self):
-        """Setup join mode with code input"""
-        if not self.network_manager.is_connected:
-            self.connection_status = "Not connected to server"
-            self.setup_browser_menu()
-            return
-            
-        self.mode = "join"
-        self.lobby_code_input.active = True
-        self.lobby_code_input.clear()
-        
-        # Clear menu items during code input
         self.menu_items = []
         
+        # Host Lobby button
+        host_item = MenuItem(
+            "Host Lobby",
+            self.host_lobby if self.network_manager and self.network_manager.is_connected else lambda: None,
+            SCREEN_WIDTH // 2,
+            menu_y_start
+        )
+        # Gray out if not connected
+        if not (self.network_manager and self.network_manager.is_connected):
+            host_item.text = "Host Lobby (Not Connected)"
+        self.menu_items.append(host_item)
+        
+        # Join with Code button
+        join_item = MenuItem(
+            "Join with Code",
+            self.show_join_input if self.network_manager and self.network_manager.is_connected else lambda: None,
+            SCREEN_WIDTH // 2,
+            menu_y_start - menu_spacing
+        )
+        # Gray out if not connected
+        if not (self.network_manager and self.network_manager.is_connected):
+            join_item.text = "Join with Code (Not Connected)"
+        self.menu_items.append(join_item)
+        
+        # Change Server button
+        self.menu_items.append(MenuItem(
+            "Change Server",
+            self.show_server_input,
+            SCREEN_WIDTH // 2,
+            menu_y_start - menu_spacing * 2
+        ))
+        
+        # Back button
+        self.menu_items.append(MenuItem(
+            "Back",
+            self.go_back,
+            SCREEN_WIDTH // 2,
+            menu_y_start - menu_spacing * 3
+        ))
+        
+        # Select first item
+        if self.menu_items:
+            self.menu_items[0].is_selected = True
+            self.selected_index = 0
+            
     def host_lobby(self):
         """Create a new lobby as host"""
-        if not self.network_manager.is_connected:
+        if not self.network_manager or not self.network_manager.is_connected:
             self.connection_status = "Not connected to server"
             return
             
+        print("Creating lobby...")
+        
         self.is_host = True
         self.lobby_code = self._generate_lobby_code()
         self.mode = "in_lobby"
@@ -295,28 +342,37 @@ class LobbyMenu(MenuState):
         
     def show_join_input(self):
         """Show lobby code input"""
-        if not self.network_manager.is_connected:
+        if not self.network_manager or not self.network_manager.is_connected:
             self.connection_status = "Not connected to server"
             return
             
-        self.setup_join_mode()
+        print("Showing join input...")
+        self.mode = "join"
+        self.lobby_code_input.active = True
+        self.lobby_code_input.clear()
+        
+        # Clear menu items during code input
+        self.menu_items = []
         
     def show_server_input(self):
         """Show server input"""
+        print("Showing server input...")
         self.server_input_active = True
         self.mode = "server_input"
         self.menu_items = []
         
     def join_lobby_with_code(self, code: str):
         """Join lobby with provided code"""
-        if not self.network_manager.is_connected:
+        if not self.network_manager or not self.network_manager.is_connected:
             self.connection_status = "Not connected to server"
             return False
             
-        if not code or len(code) != 6:
-            self.connection_status = "Invalid lobby code"
+        if not code or len(code) != 6 or not code.isdigit():
+            self.connection_status = "Invalid lobby code (must be 6 digits)"
             return False
             
+        print(f"Joining lobby with code: {code}")
+        
         self.is_host = False
         self.lobby_code = code
         self.mode = "in_lobby"
@@ -329,7 +385,6 @@ class LobbyMenu(MenuState):
         
         self.menu_items = []
         
-        print(f"Joining lobby: {code}")
         return True
         
     def _get_character_data(self) -> dict:
@@ -344,12 +399,12 @@ class LobbyMenu(MenuState):
         return {'squad': '31A', 'character': 'ruka'}
         
     def _generate_lobby_code(self) -> str:
-        """Generate random 6-character lobby code"""
-        return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        """Generate random 6-digit lobby code"""
+        return ''.join(random.choices('0123456789', k=6))
         
     def toggle_ready(self):
         """Toggle ready state for current player"""
-        if self.connected_players:
+        if self.connected_players and self.network_manager:
             # Find current player
             current_player = None
             for player in self.connected_players:
@@ -360,6 +415,7 @@ class LobbyMenu(MenuState):
             if current_player:
                 new_ready = not current_player.get('ready', False)
                 self.network_manager.set_ready(new_ready)
+                print(f"Set ready state to: {new_ready}")
                 
     def change_character(self):
         """Change character in lobby"""
@@ -381,6 +437,7 @@ class LobbyMenu(MenuState):
     def start_game(self):
         """Start the game (host only)"""
         if self.is_host and self.can_start_game():
+            print("Starting game...")
             self.network_manager.start_game()
             
     def can_start_game(self) -> bool:
@@ -391,49 +448,35 @@ class LobbyMenu(MenuState):
         
     def leave_lobby(self):
         """Leave current lobby"""
-        self.network_manager.leave_lobby()
+        print("Leaving lobby...")
+        if self.network_manager:
+            self.network_manager.leave_lobby()
         self.lobby_code = None
         self.connected_players = []
         self.is_host = False
         self.game_started = False
+        self.mode = "browser"
         self.setup_browser_menu()
         
-    def handle_back(self):
-        """Handle back button based on current mode"""
-        if self.mode == "join":
-            # Cancel join mode
-            self.setup_browser_menu()
-        elif self.mode == "in_lobby":
-            # Leave lobby
-            self.leave_lobby()
-        elif self.mode == "server_input":
-            # Cancel server input
-            self.server_input_active = False
-            self.setup_browser_menu()
-        else:
-            # Go back to previous menu
-            self.go_back()
-            
     def on_key_press(self, key, modifiers):
         """Handle key press"""
+        # Handle different modes
         if self.mode == "join" and self.lobby_code_input.active:
             # Handle lobby code input
             if key == arcade.key.ENTER:
                 if self.lobby_code_input.is_valid_code():
                     self.join_lobby_with_code(self.lobby_code_input.code)
-                    return
+                return
             elif key == arcade.key.BACKSPACE:
                 self.lobby_code_input.remove_character()
                 return
             elif key == arcade.key.ESCAPE:
+                self.mode = "browser"
                 self.setup_browser_menu()
                 return
             else:
-                # Handle alphanumeric input
-                if 65 <= key <= 90:  # A-Z
-                    char = chr(key)
-                    self.lobby_code_input.add_character(char)
-                elif 48 <= key <= 57:  # 0-9
+                # Handle numeric input only
+                if 48 <= key <= 57:  # 0-9
                     char = chr(key)
                     self.lobby_code_input.add_character(char)
                 return
@@ -442,21 +485,32 @@ class LobbyMenu(MenuState):
             # Handle server input
             if key == arcade.key.ENTER:
                 # Parse server input
-                if ':' in self.server_input:
-                    host, port = self.server_input.split(':')
-                    self.server_host = host
-                    self.server_port = int(port)
+                parts = self.server_input.split(':')
+                if len(parts) == 2:
+                    try:
+                        self.server_host = parts[0]
+                        self.server_port = int(parts[1])
+                        
+                        # Disconnect and reconnect
+                        if self.network_manager:
+                            self.network_manager.disconnect()
+                            
+                        # Reinitialize network manager
+                        self.network_manager = NetworkManager()
+                        self.network_manager.player_name = self._get_player_name()
+                        self._setup_network_callbacks()
+                        self.director.systems['network_manager'] = self.network_manager
+                        
+                        # Start connection
+                        self.start_connection()
+                        
+                        # Return to browser
+                        self.server_input_active = False
+                        
+                    except ValueError:
+                        self.connection_status = "Invalid port number"
                 else:
-                    self.server_host = self.server_input
-                    
-                # Reconnect
-                self.network_manager.disconnect()
-                self.network_manager = NetworkManager()
-                self._setup_network_callbacks()
-                self.mode = "connecting"
-                self.connection_status = f"Connecting to {self.server_host}:{self.server_port}..."
-                self.network_manager.start(self.server_host, self.server_port)
-                arcade.schedule(self._check_connection, 1.0)
+                    self.connection_status = "Invalid format (use host:port)"
                 return
                 
             elif key == arcade.key.BACKSPACE:
@@ -465,6 +519,7 @@ class LobbyMenu(MenuState):
                 return
             elif key == arcade.key.ESCAPE:
                 self.server_input_active = False
+                self.mode = "browser"
                 self.setup_browser_menu()
                 return
             else:
@@ -488,8 +543,16 @@ class LobbyMenu(MenuState):
                 self.copy_lobby_code()
             return
             
-        # Default key handling for menu navigation
-        super().on_key_press(key, modifiers)
+        elif self.mode == "browser":
+            # Default menu navigation
+            super().on_key_press(key, modifiers)
+            
+    def _get_player_name(self) -> str:
+        """Get player name from save data"""
+        save_manager = self.director.get_system('save_manager')
+        if save_manager and save_manager.current_save:
+            return save_manager.current_save.game_data.get('player_name', 'Player')
+        return 'Player'
         
     def update(self, delta_time: float):
         """Update lobby"""
@@ -516,7 +579,7 @@ class LobbyMenu(MenuState):
         )
         
         # Connection status
-        status_color = arcade.color.GREEN if self.network_manager.is_connected else arcade.color.RED
+        status_color = arcade.color.GREEN if self.network_manager and self.network_manager.is_connected else arcade.color.RED
         arcade.draw_text(
             self.connection_status,
             SCREEN_WIDTH // 2,
@@ -526,6 +589,7 @@ class LobbyMenu(MenuState):
             anchor_x="center"
         )
         
+        # Draw based on current mode
         if self.mode == "browser":
             self.draw_browser_view()
         elif self.mode == "join":
@@ -557,6 +621,16 @@ class LobbyMenu(MenuState):
             anchor_x="center"
         )
         
+        # Animated dots
+        dots = "." * (int(self.lobby_code_input.cursor_timer) % 4)
+        arcade.draw_text(
+            dots,
+            SCREEN_WIDTH // 2 + 100,
+            SCREEN_HEIGHT // 2,
+            arcade.color.WHITE,
+            24
+        )
+        
     def draw_server_input(self):
         """Draw server input screen"""
         arcade.draw_text(
@@ -580,9 +654,10 @@ class LobbyMenu(MenuState):
             arcade.color.WHITE, 2
         )
         
-        # Server text
+        # Server text with cursor
+        cursor = "_" if self.lobby_code_input.cursor_timer % 1.0 < 0.5 else ""
         arcade.draw_text(
-            self.server_input + "_",
+            self.server_input + cursor,
             SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2,
             arcade.color.WHITE,
             20,
@@ -617,7 +692,7 @@ class LobbyMenu(MenuState):
             
         # Instructions
         instructions_text = "Select an option to join multiplayer"
-        if not self.network_manager.is_connected:
+        if not (self.network_manager and self.network_manager.is_connected):
             instructions_text = "Not connected to server - Select 'Change Server' to connect"
             
         arcade.draw_text(
@@ -633,7 +708,7 @@ class LobbyMenu(MenuState):
         """Draw the join lobby view"""
         # Instructions
         arcade.draw_text(
-            "Enter Lobby Code:",
+            "Enter 6-Digit Lobby Code:",
             SCREEN_WIDTH // 2,
             SCREEN_HEIGHT // 2 + 80,
             arcade.color.WHITE,
@@ -647,7 +722,7 @@ class LobbyMenu(MenuState):
         # Instructions
         instructions_y = SCREEN_HEIGHT // 2 - 80
         arcade.draw_text(
-            "Enter 6-character lobby code",
+            "Enter the 6-digit code to join a lobby",
             SCREEN_WIDTH // 2,
             instructions_y,
             arcade.color.WHITE,
@@ -679,14 +754,14 @@ class LobbyMenu(MenuState):
                 
     def draw_lobby_view(self):
         """Draw the active lobby view"""
-        # Lobby code with copy button
+        # Large lobby code display
         lobby_code_y = SCREEN_HEIGHT - 140
         arcade.draw_text(
             f"Lobby Code: {self.lobby_code}",
             SCREEN_WIDTH // 2,
             lobby_code_y,
             arcade.color.YELLOW,
-            24,
+            32,
             anchor_x="center"
         )
         
@@ -694,7 +769,7 @@ class LobbyMenu(MenuState):
         arcade.draw_text(
             "(Press CTRL+C to copy lobby code)",
             SCREEN_WIDTH // 2,
-            lobby_code_y - 30,
+            lobby_code_y - 35,
             arcade.color.LIGHT_GRAY,
             12,
             anchor_x="center"
@@ -702,12 +777,13 @@ class LobbyMenu(MenuState):
         
         # Host indicator
         host_text = "You are the HOST" if self.is_host else "Connected to lobby"
+        host_color = arcade.color.GREEN if self.is_host else arcade.color.WHITE
         arcade.draw_text(
             host_text,
             SCREEN_WIDTH // 2,
-            lobby_code_y - 60,
-            arcade.color.GREEN if self.is_host else arcade.color.WHITE,
-            16,
+            lobby_code_y - 65,
+            host_color,
+            18,
             anchor_x="center"
         )
         
@@ -749,7 +825,8 @@ class LobbyMenu(MenuState):
             squad = character_data.get('squad', '31A')
             character = character_data.get('character', 'ruka')
             
-            info_text = f"{player['name']} - {squad} Squad - {character}"
+            # Show player name and character
+            info_text = f"{player['name']} - {squad} Squad - {character.title()}"
             arcade.draw_text(
                 info_text,
                 250, y_pos,
@@ -775,7 +852,7 @@ class LobbyMenu(MenuState):
             )
             
             # Host crown
-            if player['id'] == self.network_manager.player_id and self.is_host:
+            if player['id'] == self.network_manager.lobby_info.get('host_id'):
                 arcade.draw_text(
                     "👑",
                     200, y_pos,
@@ -797,9 +874,15 @@ class LobbyMenu(MenuState):
         )
         
         if self.is_host:
-            start_color = arcade.color.GREEN if self.can_start_game() else arcade.color.GRAY
+            if self.can_start_game():
+                start_text = "ENTER: Start Game"
+                start_color = arcade.color.GREEN
+            else:
+                start_text = "Waiting for all players to be ready..."
+                start_color = arcade.color.GRAY
+                
             arcade.draw_text(
-                "ENTER: Start Game" if self.can_start_game() else "Waiting for all players to be ready",
+                start_text,
                 SCREEN_WIDTH // 2,
                 instructions_y - 30,
                 start_color,

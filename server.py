@@ -542,13 +542,14 @@ class GameServer:
             )
         )
         
+    # In server.py, update the _generate_lobby_code method:
+
     def _generate_lobby_code(self) -> str:
-        """Generate unique lobby code"""
+        """Generate unique 6-digit lobby code"""
         import random
-        import string
         
         while True:
-            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+            code = ''.join(random.choices('0123456789', k=6))
             if code not in self.lobbies:
                 return code
                 
