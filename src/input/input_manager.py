@@ -1,5 +1,5 @@
 """
-Input management system
+Input management system - COMPLETELY FIXED
 """
 
 import arcade
@@ -22,7 +22,7 @@ class InputAction(Enum):
     ACTION_2 = "action_2"
 
 class InputManager:
-    """Manages all input handling - FIXED VERSION"""
+    """Manages all input handling - COMPLETELY FIXED"""
     
     def __init__(self):
         # Key mappings
@@ -76,6 +76,14 @@ class InputManager:
         """FIXED: This now clears all callbacks regardless of scene name"""
         self.clear_all_callbacks()
         
+    def is_action_pressed(self, action: InputAction) -> bool:
+        """Check if action is currently pressed"""
+        if action in self.input_mappings:
+            for key in self.input_mappings[action]:
+                if key in self.pressed_keys:
+                    return True
+        return False
+        
     def on_key_press(self, key, modifiers):
         """Handle key press - FIXED to only trigger current scene callbacks"""
         self.pressed_keys.add(key)
@@ -89,29 +97,6 @@ class InputManager:
                         callback()
                     except Exception as e:
                         print(f"Error in input callback for {action.value}: {e}")
-
-    # ... rest of the methods remain the same
-            
-    def is_action_pressed(self, action: InputAction) -> bool:
-        """Check if action is currently pressed"""
-        if action in self.input_mappings:
-            for key in self.input_mappings[action]:
-                if key in self.pressed_keys:
-                    return True
-        return False
-        
-    def on_key_press(self, key, modifiers):
-        """Handle key press"""
-        self.pressed_keys.add(key)
-        
-        # Trigger action callbacks
-        for action, keys in self.input_mappings.items():
-            if key in keys and action in self.action_callbacks:
-                for callback in self.action_callbacks[action]:
-                    try:
-                        callback()
-                    except Exception as e:
-                        print(f"Error in input callback: {e}")
                         
     def on_key_release(self, key, modifiers):
         """Handle key release"""

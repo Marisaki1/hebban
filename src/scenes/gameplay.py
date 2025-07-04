@@ -63,6 +63,7 @@ class GameplayScene(Scene):
         self.game_over = False
         self.game_over_processed = False
         self.game_over_callback_scheduled = False
+        self.scheduled_callbacks = []
         self.victory = False
         
         # Create cameras
@@ -128,18 +129,21 @@ class GameplayScene(Scene):
             self.particle_manager.clear()
             
     def clear_scheduled_callbacks(self):
-        """Clear all scheduled callbacks to prevent conflicts"""
-        for callback in self.scheduled_callbacks:
-            try:
-                arcade.unschedule(callback)
-            except:
-                pass
-        self.scheduled_callbacks.clear()
-        
+            """Clear all scheduled callbacks to prevent conflicts"""
+            if hasattr(self, 'scheduled_callbacks'):
+                for callback in self.scheduled_callbacks:
+                    try:
+                        arcade.unschedule(callback)
+                    except:
+                        pass
+                self.scheduled_callbacks.clear()
+            
     def schedule_callback(self, callback, delay: float):
-        """Schedule a callback and track it"""
-        self.scheduled_callbacks.append(callback)
-        arcade.schedule(callback, delay)
+            """Schedule a callback and track it"""
+            if not hasattr(self, 'scheduled_callbacks'):
+                self.scheduled_callbacks = []
+            self.scheduled_callbacks.append(callback)
+            arcade.schedule(callback, delay)
         
     def on_pause(self):
         """Pause gameplay"""
