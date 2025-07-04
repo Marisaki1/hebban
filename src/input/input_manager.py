@@ -22,7 +22,7 @@ class InputAction(Enum):
     ACTION_2 = "action_2"
 
 class InputManager:
-    """Manages all input handling"""
+    """Manages all input handling - FIXED VERSION"""
     
     def __init__(self):
         # Key mappings
@@ -41,56 +41,56 @@ class InputManager:
             InputAction.ACTION_2: [arcade.key.X, arcade.key.K],
         }
         
-        # State tracking
+        # FIXED: Only store callbacks for current active scene
         self.pressed_keys: Set[int] = set()
-        self.action_callbacks: Dict[InputAction, List[Callable]] = {}
-        self.scene_callbacks: Dict[str, Dict[InputAction, List[Callable]]] = {}
+        self.current_scene_callbacks: Dict[InputAction, List[Callable]] = {}
         self.current_scene: str = None
         
         # Mouse state
         self.mouse_x = 0
         self.mouse_y = 0
-        
-        # Controller support (basic)
         self.controller = None
         
     def set_current_scene(self, scene_name: str):
-        """Set current scene for callback management"""
+        """Set current scene and CLEAR ALL previous callbacks"""
+        # FIXED: Clear ALL callbacks when switching scenes
+        self.clear_all_callbacks()
         self.current_scene = scene_name
-        if scene_name not in self.scene_callbacks:
-            self.scene_callbacks[scene_name] = {}
-            
+        
+    def clear_all_callbacks(self):
+        """FIXED: Clear ALL callbacks to prevent accumulation"""
+        self.current_scene_callbacks.clear()
+        
     def register_action_callback(self, action: InputAction, callback: Callable, scene_name: str = None):
-        """Register callback for an action"""
-        if scene_name is None:
-            scene_name = self.current_scene
+        """Register callback for an action - ONLY for current scene"""
+        # FIXED: Only register if this is for the current scene
+        if scene_name and scene_name != self.current_scene:
+            return
             
-        # Initialize structures
-        if action not in self.action_callbacks:
-            self.action_callbacks[action] = []
+        if action not in self.current_scene_callbacks:
+            self.current_scene_callbacks[action] = []
             
-        if scene_name not in self.scene_callbacks:
-            self.scene_callbacks[scene_name] = {}
-            
-        if action not in self.scene_callbacks[scene_name]:
-            self.scene_callbacks[scene_name][action] = []
-            
-        # Add callback
-        self.action_callbacks[action].append(callback)
-        self.scene_callbacks[scene_name][action].append(callback)
+        self.current_scene_callbacks[action].append(callback)
         
     def clear_scene_callbacks(self, scene_name: str):
-        """Clear callbacks for a scene"""
-        if scene_name in self.scene_callbacks:
-            # Remove from global callbacks
-            for action, callbacks in self.scene_callbacks[scene_name].items():
-                if action in self.action_callbacks:
-                    for callback in callbacks:
-                        if callback in self.action_callbacks[action]:
-                            self.action_callbacks[action].remove(callback)
-            
-            # Clear scene callbacks
-            self.scene_callbacks[scene_name].clear()
+        """FIXED: This now clears all callbacks regardless of scene name"""
+        self.clear_all_callbacks()
+        
+    def on_key_press(self, key, modifiers):
+        """Handle key press - FIXED to only trigger current scene callbacks"""
+        self.pressed_keys.add(key)
+        
+        # FIXED: Only trigger callbacks for current scene
+        for action, keys in self.input_mappings.items():
+            if key in keys and action in self.current_scene_callbacks:
+                # Execute all callbacks for this action
+                for callback in self.current_scene_callbacks[action]:
+                    try:
+                        callback()
+                    except Exception as e:
+                        print(f"Error in input callback for {action.value}: {e}")
+
+    # ... rest of the methods remain the same
             
     def is_action_pressed(self, action: InputAction) -> bool:
         """Check if action is currently pressed"""

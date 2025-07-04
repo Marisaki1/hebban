@@ -1,5 +1,7 @@
 """
+
 Fixed character selection menu with proper save persistence
+
 """
 
 import arcade
@@ -298,6 +300,7 @@ class DetailedCharacterInfo:
 
 class CharacterSelectMenu(MenuState):
     """Character selection within a squad - FIXED save persistence"""
+
     
     def __init__(self, director, input_manager, squad_data: dict):
         super().__init__(director, input_manager)

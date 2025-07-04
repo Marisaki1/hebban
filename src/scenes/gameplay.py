@@ -53,7 +53,7 @@ class GameplayScene(Scene):
         self.enemies_defeated = 0
         self.enemies_per_wave = 5
         self.current_wave = 1
-        
+ 
         # FIXED: Single callback tracking to prevent multiple schedules
         self.game_over_callback_scheduled = False
         
@@ -119,11 +119,28 @@ class GameplayScene(Scene):
             
     def on_exit(self):
         """Cleanup when leaving gameplay"""
+        # Clear scheduled callbacks
+        self.clear_scheduled_callbacks()
+        
         if self.sound_manager:
             self.sound_manager.stop_music()
         if self.particle_manager:
             self.particle_manager.clear()
             
+    def clear_scheduled_callbacks(self):
+        """Clear all scheduled callbacks to prevent conflicts"""
+        for callback in self.scheduled_callbacks:
+            try:
+                arcade.unschedule(callback)
+            except:
+                pass
+        self.scheduled_callbacks.clear()
+        
+    def schedule_callback(self, callback, delay: float):
+        """Schedule a callback and track it"""
+        self.scheduled_callbacks.append(callback)
+        arcade.schedule(callback, delay)
+        
     def on_pause(self):
         """Pause gameplay"""
         if self.sound_manager:

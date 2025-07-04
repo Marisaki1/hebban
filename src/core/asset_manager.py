@@ -107,11 +107,13 @@ class AssetManager:
                 draw.text((text_x, text_y), text, fill=(255, 255, 255, 255))
                 
             # Create Arcade texture - FIXED for Arcade 3.0.0
+
             # Use the constructor with name as first parameter (old style that still works)
             return arcade.Texture(name, image)
             
         except Exception as e:
             print(f"Error creating texture {name}: {e}")
+
             # Fallback - create simple colored texture using class method
             try:
                 return arcade.Texture.create_filled(name, size, color + (255,))

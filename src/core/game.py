@@ -83,6 +83,7 @@ class HeavenBurnsRed(arcade.Window):
         self.is_new_game = True
         self.multiplayer_session_data = None
         
+
         # Reset multiplayer flags
         self.director.systems['is_multiplayer'] = False
         self.director.systems['game_client'] = None
@@ -97,6 +98,7 @@ class HeavenBurnsRed(arcade.Window):
         available_saves = [slot for slot in save_slots if slot['exists']]
         
         if not available_saves:
+
             print("No save files found - redirecting to New Game")
             self.start_new_game()
             return False
@@ -110,10 +112,12 @@ class HeavenBurnsRed(arcade.Window):
         if self.save_manager.load_game(slot_number):
             self.is_new_game = False
             print(f"✓ Loaded save from slot {slot_number}")
+
             
             # Check if this was a multiplayer session
             game_data = self.save_manager.current_save.game_data
             if game_data.get('was_multiplayer', False):
+
                 # Restore multiplayer session data and go to rejoin menu
                 self.multiplayer_session_data = game_data.get('multiplayer_data', {})
                 self.director.systems['is_multiplayer'] = True
@@ -149,7 +153,7 @@ class HeavenBurnsRed(arcade.Window):
             if lobby_scene:
                 lobby_scene.set_join_mode()
             self.director.change_scene('lobby_menu')
-            
+
     def save_multiplayer_session(self, lobby_data: dict):
         """Save multiplayer session data for continue"""
         if self.save_manager.current_save:
@@ -175,7 +179,9 @@ class HeavenBurnsRed(arcade.Window):
             "leaderboard": LeaderboardMenu(self.director, self.input_manager),
             "lobby_menu": LobbyMenu(self.director, self.input_manager),
             "continue_menu": ContinueMenu(self.director, self.input_manager),
+
             "save_select": SaveSelectMenu(self.director, self.input_manager),
+
             "gameplay": GameplayScene(self.director, self.input_manager),
             "pause": PauseMenu(self.director, self.input_manager),
         }

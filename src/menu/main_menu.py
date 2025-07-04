@@ -8,6 +8,7 @@ from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
 class MainMenu(MenuState):
     """Main menu with proper New Game/Continue options"""
+
     
     def __init__(self, director, input_manager):
         super().__init__(director, input_manager)
@@ -78,11 +79,13 @@ class MainMenu(MenuState):
             self.menu_items[0].is_selected = True
             
     def new_game(self):
+
         """Start a completely new game"""
         game_instance = self.director.get_system('game_instance')
         if game_instance:
             game_instance.start_new_game()
         else:
+
             # Fallback - should not happen
             print("Error: game_instance not found")
             
