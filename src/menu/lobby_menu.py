@@ -345,11 +345,14 @@ class LobbyMenu(MenuState):
                 self.setup_browser_menu()
                 return
             else:
-                # Add character if it's alphanumeric
-                char = arcade.key.symbol_string(key)
-                if len(char) == 1 and char.isalnum():
+                # FIXED: Handle alphanumeric input without symbol_string
+                if 65 <= key <= 90:  # A-Z
+                    char = chr(key)
                     self.lobby_code_input.add_character(char)
-                    return
+                elif 48 <= key <= 57:  # 0-9
+                    char = chr(key)
+                    self.lobby_code_input.add_character(char)
+                return
                     
         elif self.mode == "in_lobby":
             # Handle lobby controls
@@ -448,15 +451,40 @@ class LobbyMenu(MenuState):
             anchor_x="center"
         )
         
+    # Add this to the LobbyMenu class
+    def copy_lobby_code(self):
+        """Copy lobby code to clipboard"""
+        if self.lobby_code:
+            try:
+                import pyperclip
+                pyperclip.copy(self.lobby_code)
+                print(f"Lobby code {self.lobby_code} copied to clipboard!")
+            except ImportError:
+                print("Pyperclip not available - cannot copy to clipboard")
+            except Exception as e:
+                print(f"Error copying to clipboard: {e}")
+
+    # Update the draw_lobby_view method
     def draw_lobby_view(self):
         """Draw the active lobby view"""
-        # Lobby code
+        # Lobby code with copy button
+        lobby_code_y = SCREEN_HEIGHT - 120
         arcade.draw_text(
             f"Lobby Code: {self.lobby_code}",
             SCREEN_WIDTH // 2,
-            SCREEN_HEIGHT - 120,
+            lobby_code_y,
             arcade.color.YELLOW,
             24,
+            anchor_x="center"
+        )
+        
+        # Copy instruction
+        arcade.draw_text(
+            "(Press CTRL+C to copy lobby code)",
+            SCREEN_WIDTH // 2,
+            lobby_code_y - 30,
+            arcade.color.LIGHT_GRAY,
+            12,
             anchor_x="center"
         )
         
@@ -465,12 +493,13 @@ class LobbyMenu(MenuState):
         arcade.draw_text(
             host_text,
             SCREEN_WIDTH // 2,
-            SCREEN_HEIGHT - 160,
+            lobby_code_y - 60,
             arcade.color.GREEN if self.is_host else arcade.color.WHITE,
             16,
             anchor_x="center"
         )
         
+        # Rest of the method stays the same...
         # Player list header
         player_y = SCREEN_HEIGHT - 220
         arcade.draw_text(
@@ -534,7 +563,7 @@ class LobbyMenu(MenuState):
         instructions_y = 120
         
         arcade.draw_text(
-            "R: Toggle Ready  •  C: Change Character",
+            "R: Toggle Ready  •  C: Change Character  •  CTRL+C: Copy Code",
             SCREEN_WIDTH // 2,
             instructions_y,
             arcade.color.WHITE,
@@ -561,3 +590,4 @@ class LobbyMenu(MenuState):
             14,
             anchor_x="center"
         )
+

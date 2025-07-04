@@ -7,6 +7,7 @@ from src.core.constants import FPS
 from src.core.director import Director
 from src.core.asset_manager import AssetManager
 from src.input.input_manager import InputManager
+from src.menu.game_mode_select import GameModeSelectMenu
 from src.save.save_manager import SaveManager, SaveData
 from src.systems.gravity import GravityManager
 from src.systems.sound_manager import SoundManager
@@ -175,13 +176,12 @@ class HeavenBurnsRed(arcade.Window):
             "main_menu": MainMenu(self.director, self.input_manager),
             "squad_select": SquadSelectMenu(self.director, self.input_manager),
             "character_select": CharacterSelectMenu,  # Created dynamically
+            "game_mode_select": GameModeSelectMenu(self.director, self.input_manager),  # NEW
             "settings": SettingsMenu(self.director, self.input_manager),
             "leaderboard": LeaderboardMenu(self.director, self.input_manager),
             "lobby_menu": LobbyMenu(self.director, self.input_manager),
             "continue_menu": ContinueMenu(self.director, self.input_manager),
-
             "save_select": SaveSelectMenu(self.director, self.input_manager),
-
             "gameplay": GameplayScene(self.director, self.input_manager),
             "pause": PauseMenu(self.director, self.input_manager),
         }

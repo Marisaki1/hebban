@@ -356,7 +356,7 @@ class CharacterSelectMenu(MenuState):
         self.character_info.set_character(selected_char)
         
     def select_character(self):
-        """Confirm character selection - FIXED to save properly"""
+        """Confirm character selection - FIXED to go to game mode select"""
         selected_char = self.character_grid.get_selected_character()
         
         # FIXED: Ensure proper saving to save manager
@@ -385,13 +385,8 @@ class CharacterSelectMenu(MenuState):
                 # Complete join game flow
                 game_instance.complete_join_game_flow()
             else:
-                # Check if multiplayer
-                is_multiplayer = self.director.get_system('is_multiplayer')
-                if is_multiplayer:
-                    self.director.change_scene('lobby_menu')
-                else:
-                    # Single player - go to gameplay
-                    self.director.change_scene('gameplay')
+                # FIXED: Go to game mode selection instead of direct gameplay
+                self.director.change_scene('game_mode_select')
             
     def draw(self):
         """Draw character selection screen"""
