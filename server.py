@@ -192,15 +192,6 @@ class GameServer:
             
     async def create_lobby(self, player: Player, data: Dict):
         """Create new lobby"""
-        if len(self.lobbies) >= self.max_lobbies:
-            await self.send_to_player(player, 
-                NetworkProtocol.create_message(
-                    MessageType.LOBBY_INFO,
-                    {'error': 'Server full - maximum lobbies reached'}
-                )
-            )
-            return
-            
         lobby_code = data.get('lobby_code', self._generate_lobby_code())
         
         if lobby_code in self.lobbies:
@@ -216,6 +207,10 @@ class GameServer:
         if player.lobby_code:
             await self.leave_lobby(player, {'lobby_code': player.lobby_code})
             
+        # Set character data if provided
+        if 'character' in data:
+            player.character = data['character']
+        
         # Create new lobby
         max_players = data.get('max_players', 6)
         lobby = Lobby(lobby_code, player.id, max_players)

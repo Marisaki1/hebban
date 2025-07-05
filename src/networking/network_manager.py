@@ -120,9 +120,10 @@ class NetworkManager:
         """Handle connection response"""
         if data.get('status') == 'connected':
             self.is_connected = True
-            print("✓ Connection confirmed by server")
-            
-    # Update the create_lobby method in src/networking/network_manager.py
+            # Store player ID assigned by server
+            self.player_id = data.get('player_id', 'unknown')
+            print(f"✓ Connection confirmed by server, player_id: {self.player_id}")
+
     def create_lobby(self, lobby_code: str, character_data: dict = None):
         """Create a new lobby with character data"""
         if self.is_connected and self.loop:
@@ -130,16 +131,15 @@ class NetworkManager:
             
             # Create a task that calls the async method with character data
             async def _create():
-                # Add the character data parameter to the client method
                 await self.client.create_lobby(lobby_code, 6, character_data)
                 
             asyncio.run_coroutine_threadsafe(
                 _create(),
                 self.loop
             ).result(timeout=1.0)
-            
+
     def join_lobby(self, lobby_code: str, character_data: dict = None):
-        """Join existing lobby"""
+        """Join existing lobby with character data"""
         if self.is_connected and self.loop:
             self.is_host = False
             asyncio.run_coroutine_threadsafe(

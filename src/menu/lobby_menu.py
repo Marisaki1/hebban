@@ -3,6 +3,7 @@
 Fixed multiplayer lobby menu with proper state management
 """
 
+import asyncio
 import arcade
 import random
 import string
@@ -10,6 +11,7 @@ from src.menu.menu_state import MenuState, MenuItem
 from src.core.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 from src.input.input_manager import InputAction
 from src.networking.network_manager import NetworkManager
+from src.networking.protocol import MessageType, NetworkProtocol
 
 class LobbyCodeInput:
     """Lobby code input widget - NUMERIC ONLY"""
@@ -332,8 +334,8 @@ class LobbyMenu(MenuState):
         # Get current character data
         character_data = self._get_character_data()
         
-        # Create lobby on server
-        self.network_manager.create_lobby(self.lobby_code)
+        # Create lobby on server with character data
+        self.network_manager.create_lobby(self.lobby_code, character_data)
         
         # Clear menu items when in lobby
         self.menu_items = []
@@ -360,7 +362,7 @@ class LobbyMenu(MenuState):
         self.server_input_active = True
         self.mode = "server_input"
         self.menu_items = []
-        
+
     def join_lobby_with_code(self, code: str):
         """Join lobby with provided code"""
         if not self.network_manager or not self.network_manager.is_connected:
@@ -380,7 +382,7 @@ class LobbyMenu(MenuState):
         # Get character data
         character_data = self._get_character_data()
         
-        # Join lobby on server
+        # Join lobby on server with character data
         self.network_manager.join_lobby(code, character_data)
         
         self.menu_items = []
@@ -419,6 +421,9 @@ class LobbyMenu(MenuState):
                 
     def change_character(self):
         """Change character in lobby"""
+        # Store current lobby state
+        self.return_to_lobby_with_character = True
+        
         # Go to character select but return to lobby after
         from src.menu.character_select import CharacterSelectMenu
         from src.data.squad_data import get_squad_data
@@ -431,8 +436,35 @@ class LobbyMenu(MenuState):
             if squad_data:
                 char_select = CharacterSelectMenu(self.director, self.input_manager, squad_data)
                 char_select.return_to_lobby = True  # Flag to return to lobby
-                self.director.register_scene("character_select", char_select)
-                self.director.push_scene("character_select")
+                self.director.push_scene(char_select)  # Use push_scene to return here
+
+    def update_character_in_lobby(self):
+        """Update character data in the lobby after changing"""
+        if self.network_manager and self.network_manager.is_connected:
+            character_data = self._get_character_data()
+            
+            # Send character update to server
+            asyncio.run_coroutine_threadsafe(
+                self.network_manager.client.send_message(
+                    NetworkProtocol.create_message(
+                        MessageType.PLAYER_UPDATE,
+                        {
+                            'character': character_data,
+                            'lobby_code': self.lobby_code
+                        }
+                    )
+                ),
+                self.network_manager.loop
+            )
+
+    def on_resume(self):
+        """Called when returning to this scene"""
+        super().on_resume()
+        
+        # If returning from character select, update character in lobby
+        if hasattr(self, 'return_to_lobby_with_character') and self.return_to_lobby_with_character:
+            self.return_to_lobby_with_character = False
+            self.update_character_in_lobby()
                 
     def start_game(self):
         """Start the game (host only)"""
@@ -805,8 +837,8 @@ class LobbyMenu(MenuState):
             # Player slot background
             bg_color = arcade.color.DARK_GREEN if player['ready'] else arcade.color.DARK_GRAY
             
-            # Highlight current player
-            if player['id'] == self.network_manager.player_id:
+            # Highlight current player - check for player_id
+            if self.network_manager and hasattr(self.network_manager, 'player_id') and player['id'] == self.network_manager.player_id:
                 bg_color = arcade.color.DARK_BLUE if not player['ready'] else arcade.color.DARK_GREEN
                 
             arcade.draw_rectangle_filled(
@@ -820,10 +852,15 @@ class LobbyMenu(MenuState):
                 arcade.color.WHITE, 2
             )
             
-            # Player info
-            character_data = player.get('character', {})
-            squad = character_data.get('squad', '31A')
-            character = character_data.get('character', 'ruka')
+            # Player info - FIXED: Handle None character data
+            character_data = player.get('character')
+            if character_data and isinstance(character_data, dict):
+                squad = character_data.get('squad', '31A')
+                character = character_data.get('character', 'ruka')
+            else:
+                # Fallback values when character data is None or invalid
+                squad = '31A'
+                character = 'ruka'
             
             # Show player name and character
             info_text = f"{player['name']} - {squad} Squad - {character.title()}"
@@ -852,7 +889,7 @@ class LobbyMenu(MenuState):
             )
             
             # Host crown
-            if player['id'] == self.network_manager.lobby_info.get('host_id'):
+            if self.network_manager and hasattr(self.network_manager, 'lobby_info') and player['id'] == self.network_manager.lobby_info.get('host_id'):
                 arcade.draw_text(
                     "👑",
                     200, y_pos,
