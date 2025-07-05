@@ -119,7 +119,7 @@ class GameClient:
             except Exception as e:
                 print(f"Failed to send message: {e}")
                 
-    async def create_lobby_with_character(self, lobby_code: str, max_players: int = 6, character_data: dict = None):
+    async def create_lobby(self, lobby_code: str, max_players: int = 6, character_data: dict = None):
         """Create new lobby with character data"""
         await self.send_message(
             NetworkProtocol.create_message(
